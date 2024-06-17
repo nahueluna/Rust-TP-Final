@@ -2,68 +2,139 @@
 
 #[ink::contract]
 mod sistema_votacion {
+    use chrono::{DateTime, TimeZone, Utc};
+    use ink::prelude::{format, string::String, vec::Vec};
+    use ink::storage::Mapping;
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    /*
+     * Estructura principal del sistema. Consta del administrador electoral,
+     * una coleccion de elecciones y la totalidad de usuarios del sistema (solo su info personal)
+     */
     #[ink(storage)]
     pub struct SistemaVotacion {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+        admin: Administrador,
+        elecciones: Vec<Eleccion>,
+        usuarios: Mapping<u32, Usuario>,
+    }
+
+    /*
+     * Administrador electoral. Se encarga de crear las elecciones y configurar todos sus apartados.
+     */
+    #[ink::scale_derive(Encode, Decode, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+    #[derive(Debug)]
+    struct Administrador {
+        hash: String,
+        nombre: String,
+        apellido: String,
+        dni: u32,
+    }
+
+    /*
+     * Eleccion: identificador, fechas de inicio y cierre.
+     * Votantes con id propio y del candidato votado.
+     * Candidatos con id propio y cantidad de votos recibidos (preferible que sea HashMap)
+     */
+    #[ink::scale_derive(Encode, Decode, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+    #[derive(Debug)]
+    struct Eleccion {
+        id: u32,
+        votantes: Vec<(u32, Option<u32>)>,
+        candidatos: Vec<(u32, u16)>,
+        puesto: String,
+        inicio: Fecha,
+        fin: Fecha,
+    }
+
+    /*
+     * Informacion general de votantes y candidatos, almacenado en el sistema
+     */
+    #[ink::scale_derive(Encode, Decode, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+    #[derive(Debug)]
+    struct Usuario {
+        hash: String,
+        nombre: String,
+        apellido: String,
+        dni: u32,
+        validado: bool,
+    }
+
+    /*
+     * Estructura provisional de fecha, preferible cambiar a crate chrono
+     * */
+    #[ink::scale_derive(Encode, Decode, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+    #[derive(Debug)]
+    pub struct Fecha {
+        dia: u32,
+        mes: u32,
+        anno: u32,
     }
 
     impl SistemaVotacion {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
+        // Creacion del sistema (requiere datos del administrador)
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new(hash: String, nombre: String, apellido: String, dni: u32) -> Self {
+            let admin = Administrador::new(hash, nombre, apellido, dni);
+            Self {
+                admin,
+                elecciones: Vec::new(),
+                usuarios: Mapping::new(),
+            }
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
+        // Version muy simplificada. Hay que crear los correspondientes verificadores
         #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
-
-        /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
+        pub fn crear_eleccion(&mut self, puesto: String, inicio: Fecha, fin: Fecha) {
+            let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
+            let eleccion = Eleccion::new(id as u32, puesto, inicio, fin);
+            self.elecciones.push(eleccion);
         }
     }
 
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
+    impl Administrador {
+        // Creacion del administrador con toda la informacion requerida
+        fn new(hash: String, nombre: String, apellido: String, dni: u32) -> Self {
+            Self {
+                hash,
+                nombre,
+                apellido,
+                dni,
+            }
+        }
+    }
+
+    impl Eleccion {
+        // Creacion de una eleccion vacia
+        fn new(id: u32, puesto: String, inicio: Fecha, fin: Fecha) -> Self {
+            Self {
+                id,
+                votantes: Vec::new(),
+                candidatos: Vec::new(),
+                puesto,
+                inicio,
+                fin,
+            }
+        }
+    }
+
+    impl Usuario {
+        // Creacion de usuario (votante o candidato)
+        fn new(hash: String, nombre: String, apellido: String, dni: u32) -> Self {
+            Self {
+                hash,
+                nombre,
+                apellido,
+                dni,
+                validado: false,
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let sistema_votacion = SistemaVotacion::default();
-            assert_eq!(sistema_votacion.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut sistema_votacion = SistemaVotacion::new(false);
-            assert_eq!(sistema_votacion.get(), false);
-            sistema_votacion.flip();
-            assert_eq!(sistema_votacion.get(), true);
-        }
     }
 }
