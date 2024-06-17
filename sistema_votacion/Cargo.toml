@@ -5,7 +5,6 @@ authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.38"
 ink = { version = "5.0.0", default-features = false }
 
 [dev-dependencies]

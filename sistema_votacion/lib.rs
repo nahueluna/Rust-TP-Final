@@ -2,8 +2,7 @@
 
 #[ink::contract]
 mod sistema_votacion {
-    use chrono::{DateTime, TimeZone, Utc};
-    use ink::prelude::{format, string::String, vec::Vec};
+    use ink::prelude::{string::String, vec::Vec};
     use ink::storage::Mapping;
 
     /*
