@@ -151,7 +151,7 @@ mod sistema_votacion {
                 return Err(Error::PermisosInsuficientes);
             }
             
-            if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
+            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
                 if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
 
                     if votacion.esta_aprobado(&id_miembro, &rol) {
@@ -162,7 +162,6 @@ mod sistema_votacion {
                         }
                     } else {
                         votacion.aprobar(id_miembro, &rol);
-                        self.elecciones.set(votacion.id - 1, &votacion);
                         Ok(())
                     }
                 } else {
