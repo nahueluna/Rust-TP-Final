@@ -139,6 +139,45 @@ mod sistema_votacion {
             }
         }
 
+        /// Permite al administrador aprobar a un miembro de una eleccion ya sea un Votante o Candidato
+        /// Retorna Error::PermisosInsuficientes si un Usuario intenta acceder
+        /// Retorna Error::CandidatoYaAprobado si el Candidato ya fue aprobado
+        /// Retorna Error::VotanteYaAprobado si el Votante ya fue aprobado
+        /// Retorna Error::CandidatoNoExistente si el Candidato no existe
+        /// Retorna Error::VotanteNoExistente si el Votante no existe
+        /// Retorna Error::VotacionNoExiste si la Eleccion no existe
+        #[ink(message)]
+        pub fn aprobar(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol) -> Result<(), Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+            
+            if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
+                if let Some(_) = votacion.buscar_miembro(&id_miembro, &rol) {
+
+                    if votacion.esta_aprobado(&id_miembro, &rol) {
+
+                        match rol {
+                            Rol::Candidato => Err(Error::CandidatoYaAprobado),
+                            Rol::Votante => Err(Error::VotanteYaAprobado),
+                        }
+                    } else {
+                        votacion.aprobar(id_miembro, &rol);
+                        self.elecciones.set(votacion.id - 1, &votacion);
+                        Ok(())
+                    }
+                } else {
+                    match rol {
+                        Rol::Candidato => Err(Error::CandidatoNoExistente),
+                        Rol::Votante => Err(Error::VotanteNoExistente),
+                    }
+                }
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+
+        }
+
         /// Método interno que retorna `true` si el invocante del contrato es un administrador;
         /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
