@@ -39,10 +39,24 @@ impl Eleccion {
         }
     }
 
-    ///Busca un votante con un AccountId determinado.
-    ///Si lo encuentra retorna Some<indice> sino None.
-    pub fn buscar_votante(&self, id: AccountId) -> Option<usize> {
-        self.votantes.iter().position(|v| v.id == id)
+    pub(crate) fn añadir_miembro(&mut self, id: AccountId, rol: Rol) {
+        match rol {
+            Rol::Candidato => {
+                self.candidatos.push(Candidato::new(id));
+            }
+            Rol::Votante => {
+                self.votantes.push(Votante::new(id));
+            }
+        }
+    }
+
+    /// Busca un votante o un candidado con un AccountId determinado.
+    /// Si lo encuentra retorna Some<indice> sino None.
+    pub fn buscar_miembro(&self, id: &AccountId, rol: &Rol) -> Option<usize> {
+        match rol {
+            Rol::Candidato => self.candidatos.iter().position(|v| v.id == *id),
+            Rol::Votante => self.votantes.iter().position(|v| v.id == *id),
+        }
     }
 
     /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.

@@ -10,6 +10,7 @@ mod votante;
 #[ink::contract]
 mod sistema_votacion {
     use crate::eleccion::Eleccion;
+    use crate::eleccion::Rol;
     use crate::enums::Error;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
@@ -52,22 +53,23 @@ mod sistema_votacion {
         }
 
         #[ink(message)]
-        /// Registra un votante en una votacion determinada.
+        /// Registra un votante o un candidato en una votacion determinada.
         /// Retorna Error::UsuarioNoExistente si el usuario no esta registrado.
         /// Retorna Error::VotanteExistente si el votante ya existe.
+        /// Retorna Error::CandidatoExistente si el candidato ya existe.
         /// Retorna Error::VotacionNoExiste si la votacion no existe.
-        pub fn registrar_votante(&mut self, id_votacion: u32) -> Result<(), Error> {
+        pub fn registrar_en_elección(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
             let id = self.env().caller();
 
             if self.usuarios.get(id).is_none() {
                 return Err(Error::UsuarioNoExistente);
             }
+
             if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
-                if votacion.buscar_votante(id).is_some() {
+                if votacion.buscar_miembro(&id, &rol).is_some() {
                     return Err(Error::VotanteExistente);
                 } else {
-                    let votante = Votante::new(id);
-                    votacion.votantes.push(votante);
+                    votacion.añadir_miembro(id, rol);
                     self.elecciones.set(id_votacion - 1, &votacion); //Guardo los cambios
                     return Ok(());
                 }
@@ -112,17 +114,23 @@ mod sistema_votacion {
             Ok(())
         }
 
-        /// Retorna un `Vec<AccountId` de tanto votantes como candidatos,de una elección de id `id_elección`,
-        /// que aún no han sido verificados por el administrador.
+        /// Retorna un `Vec<AccountId` de votantes o candidatos, según se corresponda a `rol`, para una elección de id `id_elección`.
+        /// Solo contendrá **usuarios registrados** que no han sido verificados por el administrador para esa
+        /// elección. Éste método no verifica que el usuario exista en el sistema,
+        /// esto ocurre cuando el usuario se registra como votante o candidato.
         /// Si el invocante no es administrador retorna un Error:PermisosInsuficientes
         #[ink(message)]
-        pub fn get_no_verificados(&self, id_elección: u32) -> Result<Vec<AccountId>, Error> {
+        pub fn get_no_verificados(
+            &self,
+            id_elección: u32,
+            rol: Rol,
+        ) -> Result<Vec<AccountId>, Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_elección) {
-                Ok(votacion.get_no_verificados())
+            if let Some(votacion) = self.elecciones.get(id_elección - 1) {
+                Ok(votacion.get_no_verificados(rol))
             } else {
                 Err(Error::VotacionNoExiste)
             }
