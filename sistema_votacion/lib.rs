@@ -7,7 +7,6 @@ mod fecha;
 mod usuario;
 mod votante;
 
-#[allow(clippy::too_many_arguments)]
 #[ink::contract]
 mod sistema_votacion {
     use crate::eleccion::Eleccion;
@@ -91,8 +90,7 @@ mod sistema_votacion {
             mes_fin: u8,
             año_fin: u16,
         ) -> Result<(), Error> {
-            let caller = self.env().caller();
-            if caller != self.admin {
+            if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
             let inicio = Fecha::new(0, 0, hora_inicio, dia_inicio, mes_inicio, año_inicio);
@@ -101,6 +99,10 @@ mod sistema_votacion {
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
             Ok(())
+        }
+
+        fn es_admin(&self) -> bool {
+            self.env().caller() == self.admin
         }
     }
 
