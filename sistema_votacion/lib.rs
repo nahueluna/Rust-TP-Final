@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
-mod administrador;
 mod eleccion;
 mod fecha;
 mod usuario;
@@ -12,8 +11,6 @@ mod candidato;
 mod sistema_votacion {
     use ink::prelude::string::String;
     use ink::storage::{Mapping, StorageVec};
-
-    use crate::administrador::Administrador;
     use crate::eleccion::Eleccion;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
@@ -24,16 +21,16 @@ mod sistema_votacion {
      */
     #[ink(storage)]
     pub struct SistemaVotacion {
-        admin: Administrador,
+        admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<u32, Usuario>,
     }
 
     impl SistemaVotacion {
-        // Creacion del sistema (requiere datos del administrador)
+        // Creacion del sistema, toma el como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new(hash: String, nombre: String, apellido: String, dni: u32) -> Self {
-            let admin = Administrador::new(hash, nombre, apellido, dni);
+        pub fn new() -> Self {
+            let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
@@ -62,6 +59,14 @@ mod sistema_votacion {
             self.elecciones.push(&eleccion);
         }
     }
+
+    //Implementacion del trait Default
+    impl Default for SistemaVotacion {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
