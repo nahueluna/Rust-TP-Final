@@ -15,6 +15,7 @@ mod sistema_votacion {
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use crate::enums::Error;
+    use crate::votante::Votante;
 
     /*
      * Estructura principal del sistema. Consta del administrador electoral,
@@ -50,6 +51,30 @@ mod sistema_votacion {
             let usuario = Usuario::new(nombre, apellido);
             self.usuarios.insert(id, &usuario);
             Ok(())
+        }
+
+        #[ink(message)]
+        /// Registra un votante en una votacion determinada.
+        /// Retorna Error::UsuarioNoExistente si el usuario no esta registrado.
+        /// Retorna Error::VotanteExistente si el votante ya existe.
+        /// Retorna Error::VotacionNoExiste si la votacion no existe.
+        pub fn registrar_votante(&mut self,id_votacion: u32) -> Result<(), Error> {
+            let id = self.env().caller();
+
+            if self.usuarios.get(id).is_none() {
+                return Err(Error::UsuarioNoExistente);
+            }
+            if let Some(mut votacion) =  self.elecciones.get(id_votacion-1) {
+                if votacion.buscar_votante(id).is_some() {
+                    return Err(Error::VotanteExistente);
+                } else {
+                    let votante = Votante::new(id);
+                    votacion.votantes.push(votante);
+                    self.elecciones.set(id_votacion-1, &votacion); //Guardo los cambios
+                    return Ok(());
+                }    
+            }
+            Err(Error::VotacionNoExiste)
         }
 
         ///Permite al administrador crear una eleccion con los datos correspondientes.

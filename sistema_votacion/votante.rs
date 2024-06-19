@@ -8,7 +8,7 @@ use crate::enums::EstadoAprobacion;
 /// Representa un votante en una eleccion determinada.
 /// Almacena su AccountId, estado de aprobacion y si voto o no.
 pub struct Votante {
-    id: AccountId,
+    pub id: AccountId,
     aprobacion: EstadoAprobacion,
     ha_votado: bool,
 }
