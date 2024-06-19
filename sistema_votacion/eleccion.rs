@@ -1,4 +1,4 @@
-use crate::enums::EstadoAprobacion;
+use crate::enums::{EstadoAprobacion, Error};
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::{string::String, vec::Vec};
@@ -66,13 +66,23 @@ impl Eleccion {
         }
     }
 
-    /// Retorna si un miembro especificando el rol fue aprobado
-    /// Usa unwrap no usar con un id no existente
+    /// Retorna `true` un miembro especificando el rol fue aprobado.
+    /// Retorna `false` si el miembro no fue aprobado o no existe
     pub(crate) fn esta_aprobado(&self, id_miembro: &AccountId, rol: &Rol) -> bool {
         match rol {
-            Rol::Candidato => self.candidatos.iter().find(|v| &v.id == id_miembro).unwrap().está_aprobado(),
-            Rol::Votante => self.votantes.iter().find(|v| &v.id == id_miembro).unwrap().está_aprobado(),
+            Rol::Candidato => {
+                if let Some(c) = self.candidatos.iter().find(|v| &v.id == id_miembro) {
+                    return c.está_aprobado();
+                }
+            }
+            Rol::Votante => {
+                if let Some(v) = self.votantes.iter().find(|v| &v.id == id_miembro) {
+                    return v.está_aprobado();
+                }
+            }
         }
+
+        false
     }
 
     /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.
@@ -99,18 +109,23 @@ impl Eleccion {
         no_verificados
     }
 
-    /// Aprueba un miembro especificando el rol
-    pub(crate) fn aprobar(&mut self, id_miembro: AccountId, rol: &Rol) {
+    /// Aprueba un miembro especificando el rol.
+    /// Retorna `Ok()` si fue posible o `Error` si el usuario no se encontró
+    pub(crate) fn aprobar(&mut self, id_miembro: AccountId, rol: &Rol) -> Result<(), Error> {
         match rol {
             Rol::Votante => {
                 if let Some(v) = self.votantes.iter_mut().find(|v| v.id == id_miembro) {
-                    v.aprobacion = EstadoAprobacion::Aprobado;
+                   v.aprobacion = EstadoAprobacion::Aprobado;
+                   return Ok(());
                 }
+                Err(Error::CandidatoNoExistente)
             }
             Rol::Candidato => {
                 if let Some(v) = self.candidatos.iter_mut().find(|v| v.id == id_miembro) {
                     v.aprobacion = EstadoAprobacion::Aprobado;
+                    return Ok(());
                 }
+                Err(Error::VotanteNoExistente)
             }
         }
     }
