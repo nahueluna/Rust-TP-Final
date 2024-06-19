@@ -155,14 +155,12 @@ mod sistema_votacion {
                 if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
 
                     if votacion.esta_aprobado(&id_miembro, &rol) {
-
                         match rol {
                             Rol::Candidato => Err(Error::CandidatoYaAprobado),
                             Rol::Votante => Err(Error::VotanteYaAprobado),
                         }
                     } else {
-                        votacion.aprobar(id_miembro, &rol);
-                        Ok(())
+                        votacion.aprobar(id_miembro, &rol)
                     }
                 } else {
                     match rol {
