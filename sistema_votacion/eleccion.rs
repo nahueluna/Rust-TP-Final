@@ -100,14 +100,17 @@ impl Eleccion {
     }
 
     /// Aprueba un miembro especificando el rol
-    /// Usa unwrap no usar para un miembro inexistente
     pub(crate) fn aprobar(&mut self, id_miembro: AccountId, rol: &Rol) {
         match rol {
             Rol::Votante => {
-                self.votantes.iter_mut().find(|v| v.id == id_miembro).unwrap().aprobacion = EstadoAprobacion::Aprobado;
+                if let Some(v) = self.votantes.iter_mut().find(|v| v.id == id_miembro) {
+                    v.aprobacion = EstadoAprobacion::Aprobado;
+                }
             }
             Rol::Candidato => {
-                self.candidatos.iter_mut().find(|v| v.id == id_miembro).unwrap().aprobacion = EstadoAprobacion::Aprobado;
+                if let Some(v) = self.candidatos.iter_mut().find(|v| v.id == id_miembro) {
+                    v.aprobacion = EstadoAprobacion::Aprobado;
+                }
             }
         }
     }
