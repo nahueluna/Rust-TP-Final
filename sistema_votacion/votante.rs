@@ -23,4 +23,9 @@ impl Votante {
             ha_votado: false,
         }
     }
+
+    /// Regresa `true` si el votante está aprobado, sino `false`
+    pub fn está_aprobado(&self) -> bool {
+        matches!(self.aprobacion, EstadoAprobacion::Aprobado)
+    }
 }

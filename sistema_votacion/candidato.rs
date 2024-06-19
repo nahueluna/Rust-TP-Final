@@ -8,7 +8,7 @@ use crate::enums::EstadoAprobacion;
 /// Representa un candidato de una eleccion determinada.
 /// Almacena su AccountId, estado de aprobacion y cantidad de votos recibidos.
 pub struct Candidato {
-    id: AccountId,
+    pub id: AccountId,
     aprobacion: EstadoAprobacion,
     votos: u32,
 }
@@ -22,5 +22,10 @@ impl Candidato {
             aprobacion: EstadoAprobacion::Pendiente,
             votos: 0,
         }
+    }
+
+    /// Regresa `true` si el candidato está aprobado, sino `false`
+    pub fn está_aprobado(&self) -> bool {
+        matches!(self.aprobacion, EstadoAprobacion::Aprobado)
     }
 }

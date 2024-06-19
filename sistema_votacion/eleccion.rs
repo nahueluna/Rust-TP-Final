@@ -38,4 +38,20 @@ impl Eleccion {
     pub fn buscar_votante(&self, id: AccountId) -> Option<usize> {
         self.votantes.iter().position(|v| v.id == id)
     }
+
+    /// Retorna un `Vec<AccountId>` de tanto los votantes como los candidatos que aún no están verificados.
+    pub fn get_no_verificados(&self) -> Vec<AccountId> {
+        let mut no_verificados: Vec<AccountId> = Vec::new();
+        for v in self.votantes.iter() {
+            if !v.está_aprobado() {
+                no_verificados.push(v.id);
+            }
+        }
+        for c in self.candidatos.iter() {
+            if !c.está_aprobado() {
+                no_verificados.push(c.id);
+            }
+        }
+        no_verificados
+    }
 }

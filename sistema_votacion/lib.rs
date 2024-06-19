@@ -14,8 +14,7 @@ mod sistema_votacion {
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use crate::votante::Votante;
-    use ink::prelude::string::String;
-    use ink::primitives::AccountId;
+    use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
@@ -96,7 +95,7 @@ mod sistema_votacion {
             }
             let inicio = Fecha::new(0, 0, hora_inicio, dia_inicio, mes_inicio, año_inicio);
             let fin = Fecha::new(0, 0, hora_fin, dia_fin, mes_fin, año_fin);
-            let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
+            let id: u32 = self.elecciones.len() + 1;
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
             Ok(())
@@ -113,6 +112,24 @@ mod sistema_votacion {
             Ok(())
         }
 
+        /// Retorna un `Vec<AccountId` de tanto votantes como candidatos,de una elección de id `id_elección`,
+        /// que aún no han sido verificados por el administrador.
+        /// Si el invocante no es administrador retorna un Error:PermisosInsuficientes
+        #[ink(message)]
+        pub fn get_no_verificados(&self, id_elección: u32) -> Result<Vec<AccountId>, Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+
+            if let Some(votacion) = self.elecciones.get(id_elección) {
+                Ok(votacion.get_no_verificados())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
+        /// Método interno que retorna `true` si el invocante del contrato es un administrador;
+        /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
             self.env().caller() == self.admin
         }
