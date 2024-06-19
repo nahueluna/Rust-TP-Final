@@ -24,7 +24,7 @@ mod sistema_votacion {
     pub struct SistemaVotacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
-        usuarios: Mapping<u32, Usuario>,
+        usuarios: Mapping<AccountId, Usuario>,
     }
 
     impl SistemaVotacion {
@@ -42,13 +42,13 @@ mod sistema_votacion {
         #[ink(message)]
         /// Registra un usuario en el sistema de votacion.
         /// Retorna Error::UsuarioExistente si el usuario ya existe.
-        pub fn registrar_usuario(&mut self,nombre: String, apellido: String, dni: u32) -> Result<(), Error> {
-            if self.usuarios.get(dni).is_some() {
+        pub fn registrar_usuario(&mut self,nombre: String, apellido: String) -> Result<(), Error> {
+            let id = self.env().caller();
+            if self.usuarios.get(id).is_some() {
                 return Err(Error::UsuarioExistente);
             }
-            let id = self.env().caller();
-            let usuario = Usuario::new(id, nombre, apellido);
-            self.usuarios.insert(dni, &usuario);
+            let usuario = Usuario::new(nombre, apellido);
+            self.usuarios.insert(id, &usuario);
             Ok(())
         }
 
