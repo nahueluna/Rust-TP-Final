@@ -53,10 +53,16 @@ impl Eleccion {
 
     /// Busca un votante o un candidado con un AccountId determinado.
     /// Si lo encuentra retorna Some<indice> sino None.
-    pub fn buscar_miembro(&self, id: &AccountId, rol: &Rol) -> Option<usize> {
+    pub fn buscar_miembro(&self, id: &AccountId, rol: Option<&Rol>) -> Option<usize> {
         match rol {
-            Rol::Candidato => self.candidatos.iter().position(|v| v.id == *id),
-            Rol::Votante => self.votantes.iter().position(|v| v.id == *id),
+            Some(r) => match r {
+                Rol::Candidato => self.candidatos.iter().position(|v| v.id == *id),
+                Rol::Votante => self.votantes.iter().position(|v| v.id == *id),
+            },
+            None => {
+                self.candidatos.iter().position(|v| v.id == *id).
+                or(self.votantes.iter().position(|v| v.id == *id))
+            }
         }
     }
 
