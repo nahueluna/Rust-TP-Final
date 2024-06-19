@@ -17,4 +17,5 @@ pub enum EstadoAprobacion {
 /// Representa un error al llamar a un metodo del sistema.
 pub enum Error {
     PermisosInsuficientes, //Intentar acceder a un metodo del administrador sin serlo.
+    UsuarioExistente, //Intentar registrar un usuario que ya existe.
 }

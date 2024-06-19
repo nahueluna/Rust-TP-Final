@@ -41,10 +41,15 @@ mod sistema_votacion {
 
         #[ink(message)]
         /// Registra un usuario en el sistema de votacion.
-        pub fn registrar_usuario(&mut self,nombre: String, apellido: String, dni: u32) {
+        /// Retorna Error::UsuarioExistente si el usuario ya existe.
+        pub fn registrar_usuario(&mut self,nombre: String, apellido: String, dni: u32) -> Result<(), Error> {
+            if self.usuarios.get(dni).is_some() {
+                return Err(Error::UsuarioExistente);
+            }
             let id = self.env().caller();
             let usuario = Usuario::new(id, nombre, apellido);
             self.usuarios.insert(dni, &usuario);
+            Ok(())
         }
 
         ///Permite al administrador crear una eleccion con los datos correspondientes.
