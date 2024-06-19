@@ -1,4 +1,4 @@
-use ink::prelude::string::String;
+use ink::{prelude::string::String, primitives::AccountId};
 
 /*
  * Informacion general de votantes y candidatos, almacenado en el sistema
@@ -7,22 +7,18 @@ use ink::prelude::string::String;
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
 pub(crate) struct Usuario {
-    hash: String,
+    id: AccountId,
     nombre: String,
     apellido: String,
-    dni: u32,
-    validado: bool,
 }
 
 impl Usuario {
     // Creacion de usuario (votante o candidato)
-    pub(crate) fn new(hash: String, nombre: String, apellido: String, dni: u32) -> Self {
+    pub(crate) fn new(id: AccountId, nombre: String, apellido: String) -> Self {
         Self {
-            hash,
+            id,
             nombre,
             apellido,
-            dni,
-            validado: false,
         }
     }
 }
