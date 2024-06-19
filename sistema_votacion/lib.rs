@@ -14,7 +14,6 @@ mod sistema_votacion {
     use crate::enums::Error;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
-    use crate::votante::Votante;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
@@ -67,6 +66,10 @@ mod sistema_votacion {
 
             if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
                 if votacion.buscar_miembro(&id, &rol).is_some() {
+                    match rol {
+                        Rol::Candidato => return Err(Error::CandidatoExistente),
+                        Rol::Votante => return Err(Error::VotanteExistente),
+                    }
                     return Err(Error::VotanteExistente);
                 } else {
                     votacion.añadir_miembro(id, rol);

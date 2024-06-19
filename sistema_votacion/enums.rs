@@ -20,5 +20,6 @@ pub enum Error {
     UsuarioExistente,      //Intentar registrar un usuario que ya existe.
     UsuarioNoExistente,    //Intentar registrar como votante/candidato a un usuario que no existe.
     VotanteExistente,      //Intentar registrar un votante que ya existe.
+    CandidatoExistente,    //Intentar registrar un candidato que ya existe.
     VotacionNoExiste,      //Intentar registrar un votante en una eleccion que no existe.
 }
