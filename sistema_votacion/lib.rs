@@ -89,7 +89,7 @@ mod sistema_votacion {
             dia_fin: u8,
             mes_fin: u8,
             año_fin: u16,
-        ) -> Result<(), Error> {
+        ) -> Result<u32, Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
@@ -98,7 +98,7 @@ mod sistema_votacion {
             let id: u32 = self.elecciones.len() + 1;
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
-            Ok(())
+            Ok(id)
         }
 
         /// Permite al administrador ceder sus privilegios a otro usuario cuyo `AccountId` es `id_nuevo_admin`
