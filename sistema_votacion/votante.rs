@@ -9,7 +9,7 @@ use crate::enums::EstadoAprobacion;
 /// Almacena su AccountId, estado de aprobacion y si voto o no.
 pub struct Votante {
     pub id: AccountId,
-    aprobacion: EstadoAprobacion,
+    pub(crate) aprobacion: EstadoAprobacion,
     ha_votado: bool,
 }
 
