@@ -1,6 +1,7 @@
 use crate::{candidato::Candidato, fecha::Fecha};
 use crate::votante::Votante;
 use ink::prelude::{string::String, vec::Vec};
+use ink::primitives::AccountId;
 
 /*
  * Eleccion: identificador, fechas de inicio y cierre.
@@ -12,7 +13,7 @@ use ink::prelude::{string::String, vec::Vec};
 #[derive(Debug)]
 pub(crate) struct Eleccion {
     id: u32,
-    votantes: Vec<Votante>,
+    pub votantes: Vec<Votante>,
     candidatos: Vec<Candidato>,
     puesto: String,
     inicio: Fecha,
@@ -30,5 +31,11 @@ impl Eleccion {
             inicio,
             fin,
         }
+    }
+
+    ///Busca un votante con un AccountId determinado.
+    ///Si lo encuentra retorna Some<indice> sino None.
+    pub fn buscar_votante(&self,id: AccountId) -> Option<usize> {
+        self.votantes.iter().position(|v| v.id==id )
     }
 }
