@@ -24,6 +24,8 @@ pub enum Error {
     VotanteNoExistente,      //Intentar aprobar un votante que no existe.
     CandidatoNoExistente,    //Intentar aprobar un candidato que no existe.
     VotanteYaAprobado,       //Intentar aprobar un votante que ya fue aprpbado.
-    CandidatoYaAprobado,     //Intentar aprobar un candidato que ya fue aprpbado.
+    CandidatoYaAprobado,     //Intentar aprobar un candidato que ya fue aprobado.
+    VotanteYaRechazado,      //Intentar rechazar un candidato que ya fue rechazado   
+    CandidatoYaRechazado,    //Intentar rechazar un candidato que ya fue rechazado
     VotacionNoExiste,        //Intentar registrar un votante en una eleccion que no existe.
 }
