@@ -15,6 +15,7 @@ mod sistema_votacion {
     use crate::usuario::Usuario;
     use crate::votante::Votante;
     use ink::prelude::string::String;
+    use ink::primitives::AccountId;
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
@@ -98,6 +99,17 @@ mod sistema_votacion {
             let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
+            Ok(())
+        }
+
+        /// Permite al administrador ceder sus privilegios a otro usuario cuyo `AccountId` es `id_nuevo_admin`
+        /// Si el usuario que le invoca no es administrador retorna `Error::PermisosInsuficientes`
+        #[ink(message)]
+        pub fn delegar_admin(&mut self, id_nuevo_admin: AccountId) -> Result<(), Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+            self.admin = id_nuevo_admin;
             Ok(())
         }
 
