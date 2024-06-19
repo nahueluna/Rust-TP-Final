@@ -53,26 +53,25 @@ mod sistema_votacion {
 
         #[ink(message)]
         /// Registra un votante o un candidato en una votacion determinada.
-        /// Retorna Error::UsuarioNoExistente si el usuario no esta registrado.
-        /// Retorna Error::VotanteExistente si el votante ya existe.
-        /// Retorna Error::CandidatoExistente si el candidato ya existe.
-        /// Retorna Error::VotacionNoExiste si la votacion no existe.
-        pub fn registrar_en_elección(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
+        /// Retorna `Error::UsuarioNoExistente` si el usuario no esta registrado.
+        /// Retorna `Error::VotanteExistente` si el votante ya existe.
+        /// Retorna `Error::CandidatoExistente` si el candidato ya existe.
+        /// Retorna `Error::VotacionNoExiste` si la votacion no existe.
+        pub fn registrar_en_eleccion(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
             let id = self.env().caller();
 
             if self.usuarios.get(id).is_none() {
                 return Err(Error::UsuarioNoExistente);
             }
 
-            if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
-                if votacion.buscar_miembro(&id, &rol).is_some() {
+            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
+                if votacion.buscar_miembro(&id, None).is_some() {
                     match rol {
                         Rol::Candidato => Err(Error::CandidatoExistente),
                         Rol::Votante => Err(Error::VotanteExistente),
                     }
                 } else {
                     votacion.añadir_miembro(id, rol);
-                    self.elecciones.set(id_votacion - 1, &votacion); //Guardo los cambios
                     Ok(())
                 }
             } else {
@@ -153,7 +152,7 @@ mod sistema_votacion {
             }
             
             if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
-                if let Some(_) = votacion.buscar_miembro(&id_miembro, &rol) {
+                if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
 
                     if votacion.esta_aprobado(&id_miembro, &rol) {
 
