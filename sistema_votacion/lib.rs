@@ -67,17 +67,17 @@ mod sistema_votacion {
             if let Some(mut votacion) = self.elecciones.get(id_votacion - 1) {
                 if votacion.buscar_miembro(&id, &rol).is_some() {
                     match rol {
-                        Rol::Candidato => return Err(Error::CandidatoExistente),
-                        Rol::Votante => return Err(Error::VotanteExistente),
+                        Rol::Candidato => Err(Error::CandidatoExistente),
+                        Rol::Votante => Err(Error::VotanteExistente),
                     }
-                    return Err(Error::VotanteExistente);
                 } else {
                     votacion.añadir_miembro(id, rol);
                     self.elecciones.set(id_votacion - 1, &votacion); //Guardo los cambios
-                    return Ok(());
+                    Ok(())
                 }
+            } else {
+                Err(Error::VotacionNoExiste)
             }
-            Err(Error::VotacionNoExiste)
         }
 
         /// Permite al administrador crear una eleccion con los datos correspondientes.
