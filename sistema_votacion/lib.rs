@@ -174,6 +174,48 @@ mod sistema_votacion {
 
         }
 
+        /// Permite al administrador rechazar a un miembro de una eleccion ya sea un `Votante` o `Candidato`
+        /// Retorna `Error::PermisosInsuficientes` si un Usuario intenta acceder
+        /// Retorna `Error::CandidatoYaAprobado` si el Candidato fue previamente aprobado
+        /// Retorna `Error::VotanteYaAprobado` si el Votante fue previamente aprobado
+        /// Retorna `Error::CandidatoYaRechazado` si el candidato ya fue rechazado
+        /// Retorna `Error::VotanteYaRechazado` si el votante ya fue rechazado
+        /// Retorna `Error::CandidatoNoExistente` si el Candidato no existe
+        /// Retorna `Error::VotanteNoExistente` si el Votante no existe
+        /// Retorna `Error::VotacionNoExiste` si la Eleccion no existe
+        #[ink(message)]
+        pub fn rechazar(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol) -> Result<(), Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+
+            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
+                if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
+
+                    if votacion.esta_aprobado(&id_miembro, &rol) {
+                        match rol {
+                            Rol::Candidato => Err(Error::CandidatoYaAprobado),
+                            Rol::Votante => Err(Error::VotanteYaAprobado),
+                        }
+                    } else if votacion.esta_rechazado(&id_miembro, &rol) {
+                        match rol {
+                            Rol::Candidato => Err(Error::CandidatoYaRechazado),
+                            Rol::Votante => Err(Error::VotanteYaRechazado),
+                        }
+                    } else {
+                        votacion.rechazar(id_miembro, &rol)
+                    }
+                } else {
+                    match rol {
+                        Rol::Candidato => Err(Error::CandidatoNoExistente),
+                        Rol::Votante => Err(Error::VotanteNoExistente),
+                    }
+                }
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
         /// Método interno que retorna `true` si el invocante del contrato es un administrador;
         /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
