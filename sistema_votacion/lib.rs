@@ -6,6 +6,7 @@ mod fecha;
 mod usuario;
 mod enums;
 mod votante;
+mod candidato;
 
 #[ink::contract]
 mod sistema_votacion {
@@ -57,7 +58,7 @@ mod sistema_votacion {
             let inicio = Fecha::new(0, 0, hora_inicio, dia_inicio, mes_inicio, año_inicio);
             let fin = Fecha::new(0, 0, hora_fin, dia_fin, mes_fin, año_fin);
             let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
-            let eleccion = Eleccion::new(id as u32, puesto, inicio, fin);
+            let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
         }
     }
