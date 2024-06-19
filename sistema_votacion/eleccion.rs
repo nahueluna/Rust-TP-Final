@@ -1,9 +1,10 @@
 use crate::fecha::Fecha;
+use crate::votante::Votante;
 use ink::prelude::{string::String, vec::Vec};
 
 /*
  * Eleccion: identificador, fechas de inicio y cierre.
- * Votantes con id propio y del candidato votado.
+ * Votantes con su id propio, estado de aprobacion, y si votaron o no.
  * Candidatos con id propio y cantidad de votos recibidos (preferible que sea HashMap)
  */
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
@@ -11,7 +12,7 @@ use ink::prelude::{string::String, vec::Vec};
 #[derive(Debug)]
 pub(crate) struct Eleccion {
     id: u32,
-    votantes: Vec<(u32, Option<u32>)>,
+    votantes: Vec<Votante>,
     candidatos: Vec<(u32, u16)>,
     puesto: String,
     inicio: Fecha,

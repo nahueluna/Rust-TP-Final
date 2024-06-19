@@ -5,11 +5,12 @@ mod eleccion;
 mod fecha;
 mod usuario;
 mod enums;
+mod votante;
 
 #[ink::contract]
 mod sistema_votacion {
-    use ink::prelude::{string::String, vec::Vec};
-    use ink::storage::Mapping;
+    use ink::prelude::string::String;
+    use ink::storage::{Mapping, StorageVec};
 
     use crate::administrador::Administrador;
     use crate::eleccion::Eleccion;
@@ -23,7 +24,7 @@ mod sistema_votacion {
     #[ink(storage)]
     pub struct SistemaVotacion {
         admin: Administrador,
-        elecciones: Vec<Eleccion>,
+        elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<u32, Usuario>,
     }
 
@@ -34,7 +35,7 @@ mod sistema_votacion {
             let admin = Administrador::new(hash, nombre, apellido, dni);
             Self {
                 admin,
-                elecciones: Vec::new(),
+                elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
             }
         }
@@ -57,7 +58,7 @@ mod sistema_votacion {
             let fin = Fecha::new(0, 0, hora_fin, dia_fin, mes_fin, año_fin);
             let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
             let eleccion = Eleccion::new(id as u32, puesto, inicio, fin);
-            self.elecciones.push(eleccion);
+            self.elecciones.push(&eleccion);
         }
     }
     #[cfg(test)]

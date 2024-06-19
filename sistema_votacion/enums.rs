@@ -5,7 +5,7 @@
 /// Los usuarios registrados como votantes o candidatos,
 /// inician en estado de aprobacion pendiente para una eleccion determinada.
 /// Luego el administrador puede aprobarlos o rechazarlos.
-enum EstadoAprobacion {
+pub enum EstadoAprobacion {
     Pendiente,
     Aprobado,
     Rechazado,
