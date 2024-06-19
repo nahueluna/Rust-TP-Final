@@ -4,6 +4,7 @@ mod administrador;
 mod eleccion;
 mod fecha;
 mod usuario;
+mod enums;
 
 #[ink::contract]
 mod sistema_votacion {
