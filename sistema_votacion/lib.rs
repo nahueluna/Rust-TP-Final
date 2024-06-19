@@ -38,6 +38,14 @@ mod sistema_votacion {
             }
         }
 
+        #[ink(message)]
+        /// Registra un usuario en el sistema de votacion.
+        pub fn registrar_usuario(&mut self,nombre: String, apellido: String, dni: u32) {
+            let id = self.env().caller();
+            let usuario = Usuario::new(id, nombre, apellido);
+            self.usuarios.insert(dni, &usuario);
+        }
+
         // Version muy simplificada. Hay que crear los correspondientes verificadores
         #[ink(message)]
         pub fn crear_eleccion(
