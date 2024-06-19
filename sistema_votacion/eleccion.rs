@@ -60,6 +60,15 @@ impl Eleccion {
         }
     }
 
+    /// Retorna si un miembro especificando el rol fue aprobado
+    /// Usa unwrap no usar con un id no existente
+    pub(crate) fn esta_aprobado(&self, id_miembro: &AccountId, rol: &Rol) -> bool {
+        match rol {
+            Rol::Candidato => self.candidatos.iter().find(|v| &v.id == id_miembro).unwrap().está_aprobado(),
+            Rol::Votante => self.votantes.iter().find(|v| &v.id == id_miembro).unwrap().está_aprobado(),
+        }
+    }
+
     /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.
     pub fn get_no_verificados(&self, rol: Rol) -> Vec<AccountId> {
         let mut no_verificados: Vec<AccountId> = Vec::new();
