@@ -13,8 +13,8 @@ use ink::primitives::AccountId;
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
 pub(crate) struct Eleccion {
-    id: u32,
-    pub votantes: Vec<Votante>,
+    pub(crate) id: u32,
+    votantes: Vec<Votante>,
     candidatos: Vec<Candidato>,
     puesto: String,
     inicio: Fecha,
