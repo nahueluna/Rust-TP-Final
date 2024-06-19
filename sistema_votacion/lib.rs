@@ -14,6 +14,7 @@ mod sistema_votacion {
     use crate::eleccion::Eleccion;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
+    use crate::enums::Error;
 
     /*
      * Estructura principal del sistema. Consta del administrador electoral,
@@ -46,7 +47,8 @@ mod sistema_votacion {
             self.usuarios.insert(dni, &usuario);
         }
 
-        // Version muy simplificada. Hay que crear los correspondientes verificadores
+        ///Permite al administrador crear una eleccion con los datos correspondientes.
+        ///Retorna Error::PermisosInsuficientes si un usuario intenta acceder.
         #[ink(message)]
         pub fn crear_eleccion(
             &mut self,
@@ -59,12 +61,17 @@ mod sistema_votacion {
             dia_fin: u8,
             mes_fin: u8,
             año_fin: u16,
-        ) {
+        )  -> Result<(), Error> {
+            let caller = self.env().caller();
+            if caller!=self.admin {
+                return Err(Error::PermisosInsuficientes);
+            }
             let inicio = Fecha::new(0, 0, hora_inicio, dia_inicio, mes_inicio, año_inicio);
             let fin = Fecha::new(0, 0, hora_fin, dia_fin, mes_fin, año_fin);
             let id = self.elecciones.len() + 1; // Reemplazar por un calculo mas sofisticado
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
+            Ok(())
         }
     }
 
