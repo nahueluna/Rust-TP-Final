@@ -20,6 +20,12 @@ pub(crate) struct Eleccion {
     fin: Fecha,
 }
 
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
+pub enum Rol {
+    Candidato,
+    Votante,
+}
+
 impl Eleccion {
     // Creacion de una eleccion vacia
     pub(crate) fn new(id: u32, puesto: String, inicio: Fecha, fin: Fecha) -> Self {
@@ -39,19 +45,27 @@ impl Eleccion {
         self.votantes.iter().position(|v| v.id == id)
     }
 
-    /// Retorna un `Vec<AccountId>` de tanto los votantes como los candidatos que aún no están verificados.
-    pub fn get_no_verificados(&self) -> Vec<AccountId> {
+    /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.
+    pub fn get_no_verificados(&self, rol: Rol) -> Vec<AccountId> {
         let mut no_verificados: Vec<AccountId> = Vec::new();
-        for v in self.votantes.iter() {
-            if !v.está_aprobado() {
-                no_verificados.push(v.id);
+
+        match rol {
+            Rol::Votante => {
+                for v in self.votantes.iter() {
+                    if !v.está_aprobado() {
+                        no_verificados.push(v.id);
+                    }
+                }
+            }
+            Rol::Candidato => {
+                for c in self.candidatos.iter() {
+                    if !c.está_aprobado() {
+                        no_verificados.push(c.id);
+                    }
+                }
             }
         }
-        for c in self.candidatos.iter() {
-            if !c.está_aprobado() {
-                no_verificados.push(c.id);
-            }
-        }
+
         no_verificados
     }
 }
