@@ -1,5 +1,5 @@
-use crate::{candidato::Candidato, fecha::Fecha};
 use crate::votante::Votante;
+use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::{string::String, vec::Vec};
 use ink::primitives::AccountId;
 
@@ -35,7 +35,7 @@ impl Eleccion {
 
     ///Busca un votante con un AccountId determinado.
     ///Si lo encuentra retorna Some<indice> sino None.
-    pub fn buscar_votante(&self,id: AccountId) -> Option<usize> {
-        self.votantes.iter().position(|v| v.id==id )
+    pub fn buscar_votante(&self, id: AccountId) -> Option<usize> {
+        self.votantes.iter().position(|v| v.id == id)
     }
 }

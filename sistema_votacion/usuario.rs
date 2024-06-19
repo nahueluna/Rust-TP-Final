@@ -14,9 +14,6 @@ pub(crate) struct Usuario {
 impl Usuario {
     // Creacion de usuario (votante o candidato)
     pub(crate) fn new(nombre: String, apellido: String) -> Self {
-        Self {
-            nombre,
-            apellido,
-        }
+        Self { nombre, apellido }
     }
 }
