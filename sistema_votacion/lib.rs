@@ -140,7 +140,7 @@ mod sistema_votacion {
         }
 
         /// Permite al administrador aprobar o rechazar un miembro de una eleccion, ya sea un `Votante` o `Candidato`.
-        /// 
+        ///
         /// # Retorno
         /// * `Error::PermisosInsuficientes` si un Usuario distinto del administrador intenta acceder.
         /// * `Error::CandidatoYaAprobado` si el Candidato ya fue aprobado.
@@ -151,16 +151,21 @@ mod sistema_votacion {
         /// * `Error::VotanteNoExistente` si el Votante no existe.
         /// * `Error::VotacionNoExiste` si la Eleccion no existe.
         #[ink(message)]
-        pub fn cambiar_estado_aprobacion(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol, estado: EstadoAprobacion) -> Result<(), Error> {
+        pub fn cambiar_estado_aprobacion(
+            &mut self,
+            id_votacion: u32,
+            id_miembro: AccountId,
+            rol: Rol,
+            estado: EstadoAprobacion,
+        ) -> Result<(), Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
                 let usuario = votacion.buscar_votante(&id_miembro); // Esto es lo que esta mal, debe ser Candidato o Votante (decidido de forma dinamica)
-                
-                if let Some(u) = usuario {
 
+                if let Some(u) = usuario {
                     if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
                         match rol {
                             Rol::Candidato => Err(Error::CandidatoYaAprobado),
@@ -184,7 +189,29 @@ mod sistema_votacion {
             } else {
                 Err(Error::VotacionNoExiste)
             }
+        }
 
+        /// Retorna los candidatos aprobados en la elección de id `id_votacion`, solo si el
+        /// usuario también se encuentra aprobado.
+        /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
+        /// usuarios registrados en el sistema.
+        #[ink(message)]
+        pub fn get_candidatos(
+            &mut self,
+            id_votacion: u32,
+        ) -> Result<Vec<(AccountId, Usuario)>, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+                // Utiliza `unwrap()` ya que si el método `get_candidatos` de una elección
+                // retorna un id inválido, algo MUY MALO HA PASADO, y debería finalizar la
+                // ejecución.
+                Ok(eleccion
+                    .get_candidatos()
+                    .iter()
+                    .map(|id| (*id, self.usuarios.get(id).unwrap()))
+                    .collect())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
         }
 
         /// Método interno que retorna `true` si el invocante del contrato es un administrador;

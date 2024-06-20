@@ -6,7 +6,7 @@ use ink::prelude::string::String;
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
-pub(crate) struct Usuario {
+pub struct Usuario {
     nombre: String,
     apellido: String,
 }
