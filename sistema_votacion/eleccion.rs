@@ -1,7 +1,8 @@
-use crate::enums::{EstadoAprobacion, Error, EstadoDeEleccion};
+use crate::enums::{Error, EstadoDeEleccion};
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::{string::String, vec::Vec};
+use ink::prelude::string::ToString;
 use ink::primitives::AccountId;
 
 /*
@@ -123,9 +124,9 @@ impl Eleccion {
 
     pub fn consultar_estado(&self) -> String {
         match self.estado {
-            EstadoDeEleccion::EnCurso => return "La eleccion está en curso".to_string(),
-            EstadoDeEleccion::Pendiente => return "La eleccion todavia no inició".to_string(),
-            EstadoDeEleccion::Finalizada => return "La eleccion ya ha finalizado".to_string(),
+            EstadoDeEleccion::EnCurso => "La eleccion está en curso".to_string(),
+            EstadoDeEleccion::Pendiente => "La eleccion todavia no inició".to_string(),
+            EstadoDeEleccion::Finalizada => "La eleccion ya ha finalizado".to_string(),
         }
     }
 }
