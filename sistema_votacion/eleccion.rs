@@ -51,58 +51,40 @@ impl Eleccion {
         }
     }
 
-    /// Busca un votante o un candidado con un AccountId determinado.
-    /// Si lo encuentra retorna Some<indice> sino None.
-    pub fn buscar_miembro(&self, id: &AccountId, rol: Option<&Rol>) -> Option<usize> {
+    /// Devuelve `Some(index)` del usuario con el id y rol especificado o
+    /// `None` en caso de no encontrarlo.
+    fn get_posicion_miembro(&self, id: &AccountId, rol: &Rol) -> Option<usize> {
         match rol {
-            Some(r) => match r {
-                Rol::Candidato => self.candidatos.iter().position(|v| v.id == *id),
-                Rol::Votante => self.votantes.iter().position(|v| v.id == *id),
-            },
-            None => {
-                self.candidatos.iter().position(|v| v.id == *id).
-                or(self.votantes.iter().position(|v| v.id == *id))
-
-            }
+            Rol::Candidato => self.candidatos.iter().position(|v| v.id == *id),
+            Rol::Votante => self.votantes.iter().position(|v| v.id == *id),
         }
     }
 
-    /// Retorna `true` un miembro especificando el rol fue aprobado.
-    /// Retorna `false` si el miembro no fue aprobado o no existe
-    pub(crate) fn esta_aprobado(&self, id_miembro: &AccountId, rol: &Rol) -> bool {
-        match rol {
-            Rol::Candidato => {
-                if let Some(c) = self.candidatos.iter().find(|v| &v.id == id_miembro) {
-                    return c.esta_aprobado();
-                }
-            }
-            Rol::Votante => {
-                if let Some(v) = self.votantes.iter().find(|v| &v.id == id_miembro) {
-                    return v.esta_aprobado();
-                }
-            }
+    /// Busca un votante con un AccountId determinado
+    /// Retorna `Some(&mut Votante)` si lo halla, sino devuelve `None`.
+    pub fn buscar_votante(&mut self, id: &AccountId) -> Option<&mut Votante> {
+        if let Some(index) = self.get_posicion_miembro(id, &Rol::Votante) {
+            return self.votantes.get_mut(index);
         }
 
-        false
+        None
     }
 
-    /// Retorna `true` un miembro especificando el rol fue rechazado.
-    /// Retorna `false` si el miembro no fue aprobado o no existe
-    pub(crate) fn esta_rechazado(&self, id_miembro: &AccountId, rol: &Rol) -> bool {
-        match rol {
-            Rol::Candidato => {
-                if let Some(c) = self.candidatos.iter().find(|v| &v.id == id_miembro) {
-                    return c.esta_rechazado();
-                }
-            }
-            Rol::Votante => {
-                if let Some(v) = self.votantes.iter().find(|v| &v.id == id_miembro) {
-                    return v.esta_rechazado();
-                }
-            }
+    /// Busca un candidato con un AccountId determinado
+    /// Retorna `Some(&mut Candidato)` si lo halla, sino devuelve `None`.
+    pub fn buscar_candidato(&mut self, id: &AccountId) -> Option<&mut Candidato> {
+        if let Some(index) = self.get_posicion_miembro(id, &Rol::Candidato) {
+            return self.candidatos.get_mut(index);
         }
 
-        false
+        None
+    }
+
+    /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
+    /// sea `Candidato` o `Votante`
+    pub fn existe_usuario(&self, id: &AccountId) -> bool {
+        self.votantes.iter().any(|vot| vot.id == *id) || 
+        self.candidatos.iter().any(|cand| cand.id == *id)
     }
 
     /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.
@@ -127,47 +109,5 @@ impl Eleccion {
         }
 
         no_verificados
-    }
-
-    /// Aprueba un miembro especificando el rol.
-    /// Retorna `Ok()` si fue posible o `Error` si el usuario no se encontró
-    pub(crate) fn aprobar(&mut self, id_miembro: AccountId, rol: &Rol) -> Result<(), Error> {
-        match rol {
-            Rol::Votante => {
-                if let Some(v) = self.votantes.iter_mut().find(|v| v.id == id_miembro) {
-                   v.aprobacion = EstadoAprobacion::Aprobado;
-                   return Ok(());
-                }
-                Err(Error::CandidatoNoExistente)
-            }
-            Rol::Candidato => {
-                if let Some(v) = self.candidatos.iter_mut().find(|v| v.id == id_miembro) {
-                    v.aprobacion = EstadoAprobacion::Aprobado;
-                    return Ok(());
-                }
-                Err(Error::VotanteNoExistente)
-            }
-        }
-    }
-
-    /// Rechaza un miembro especificando el rol.
-    /// Retorna `Ok()` si fue posible o `Error` si el usuario no se encontró
-    pub(crate) fn rechazar(&mut self, id_miembro: AccountId, rol: &Rol) -> Result<(), Error> {
-        match rol {
-            Rol::Votante => {
-                if let Some(v) = self.votantes.iter_mut().find(|v| v.id == id_miembro) {
-                   v.aprobacion = EstadoAprobacion::Rechazado;
-                   return Ok(());
-                }
-                Err(Error::CandidatoNoExistente)
-            }
-            Rol::Candidato => {
-                if let Some(v) = self.candidatos.iter_mut().find(|v| v.id == id_miembro) {
-                    v.aprobacion = EstadoAprobacion::Rechazado;
-                    return Ok(());
-                }
-                Err(Error::VotanteNoExistente)
-            }
-        }
     }
 }
