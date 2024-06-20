@@ -17,6 +17,8 @@ mod sistema_votacion {
     use crate::usuario::Usuario;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
+    //use ink::codegen::TraitCallBuilder;
+    use contrato_reportes::ReportesRef;
 
     /// Estructura principal del sistema. Consta del administrador electoral,
     /// una coleccion de elecciones y la totalidad de usuarios del sistema (solo su info personal)
@@ -25,17 +27,24 @@ mod sistema_votacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<AccountId, Usuario>,
+        contrato_reportes: ReportesRef,
     }
 
     impl SistemaVotacion {
         // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new() -> Self {
+        pub fn new(hash_contrato_reportes: Hash) -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
+                contrato_reportes: ReportesRef::new(true)
+                    .instantiate_v1()
+                    .code_hash(hash_contrato_reportes)
+                    .endowment(0)                          // no se que hace esto #TODO
+                    .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])  // ni esto
+                    .instantiate(),
             }
         }
 
@@ -227,13 +236,6 @@ mod sistema_votacion {
         /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
             self.env().caller() == self.admin
-        }
-    }
-
-    // Implementacion del trait Default
-    impl Default for SistemaVotacion {
-        fn default() -> Self {
-            Self::new()
         }
     }
 
