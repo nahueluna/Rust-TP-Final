@@ -114,9 +114,13 @@ impl Eleccion {
         no_verificados
     }
 
-    /// Retorna una lista de candidatos. Si no los hay retorna la lista vacía.
+    /// Retorna una lista de candidatos aprobados. Si no los hay retorna la lista vacía.
     pub fn get_candidatos(&self) -> Vec<AccountId> {
-        self.candidatos.iter().map(|c| c.id).collect()
+        self.candidatos
+            .iter()
+            .filter(|c| c.esta_aprobado())
+            .map(|c| c.id)
+            .collect()
     }
 
     pub fn consultar_estado(&self) -> String {
