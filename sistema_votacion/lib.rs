@@ -27,24 +27,27 @@ mod sistema_votacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<AccountId, Usuario>,
-        contrato_reportes: ReportesRef,
+        // contrato_reportes: ReportesRef, // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
     }
 
     impl SistemaVotacion {
         // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new(hash_contrato_reportes: Hash) -> Self {
+        pub fn new(
+            // hash_contrato_reportes: Hash // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
+        ) -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
-                contrato_reportes: ReportesRef::new(true)
-                    .instantiate_v1()
-                    .code_hash(hash_contrato_reportes)
-                    .endowment(0)                          // no se que hace esto #TODO
-                    .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])  // ni esto
-                    .instantiate(),
+                // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
+                // contrato_reportes: ReportesRef::new(true)
+                //     .instantiate_v1()
+                //     .code_hash(hash_contrato_reportes)
+                //     .endowment(0)                          // no se que hace esto #TODO
+                //     .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])  // ni esto
+                //     .instantiate(),
             }
         }
 
