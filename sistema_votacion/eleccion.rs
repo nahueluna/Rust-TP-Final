@@ -1,4 +1,4 @@
-use crate::enums::{Error, EstadoDeEleccion};
+use crate::enums::{Error, EstadoAprobacion, EstadoDeEleccion};
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::string::ToString;
@@ -27,6 +27,14 @@ pub(crate) struct Eleccion {
 pub enum Rol {
     Candidato,
     Votante,
+}
+
+pub trait Miembro {
+    fn esta_aprobado(&self) -> bool;
+    fn esta_rechazado(&self) -> bool;
+    fn esta_pendiente(&self) -> bool;
+    fn votar(&mut self) -> Result<(), Error>;
+    fn cambiar_estado_aprobacion(&mut self, estado: EstadoAprobacion);
 }
 
 impl Eleccion {
@@ -66,11 +74,22 @@ impl Eleccion {
     /// Busca un votante o un candidato con un AccountId determinado
     /// Retorna `Some(&mut Votante)` o `Some(&mut Candidato)`, respectivamente,
     /// si lo halla, sino devuelve `None`.
-    pub fn buscar_miembro(&mut self, id: &AccountId, rol: &Rol) -> Option<&mut Votante> {
-        if let Some(index) = self.get_posicion_miembro(id, rol) {
-            self.votantes.get_mut(index)
-        } else {
-            None
+    pub fn buscar_miembro(&mut self, id: &AccountId, rol: &Rol) -> Option<&mut dyn Miembro> {
+        match rol {
+            Rol::Candidato => {
+                if let Some(c) = self.candidatos.iter_mut().find(|v| v.id == *id) {
+                    Some(c)
+                } else {
+                    None
+                }
+            }
+            Rol::Votante => {
+                if let Some(v) = self.votantes.iter_mut().find(|v| v.id == *id) {
+                    Some(v)
+                } else {
+                    None
+                }
+            }
         }
     }
 
