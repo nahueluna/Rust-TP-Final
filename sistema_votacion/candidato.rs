@@ -24,6 +24,10 @@ impl Candidato {
         }
     }
 
+    pub fn votar(&mut self) {
+        self.votos += 1;
+    }
+
     /// Retorna `true` si el candidato está aprobado, sino `false`
     pub fn esta_aprobado(&self) -> bool {
         matches!(self.aprobacion, EstadoAprobacion::Aprobado)

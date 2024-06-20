@@ -1,4 +1,4 @@
-use crate::enums::EstadoDeEleccion;
+use crate::enums::{Error, EstadoDeEleccion};
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::string::ToString;
@@ -124,6 +124,21 @@ impl Eleccion {
             EstadoDeEleccion::EnCurso => "La eleccion está en curso".to_string(),
             EstadoDeEleccion::Pendiente => "La eleccion todavia no inició".to_string(),
             EstadoDeEleccion::Finalizada => "La eleccion ya ha finalizado".to_string(),
+        }
+    }
+
+    // Permite que el votante `id_votante` vote al candidato `id_cantidato`
+    // Una vez que esto ocurre, el votante no puede volver a votar
+    pub fn votar(&mut self, id_votante: AccountId, id_candidato: AccountId) -> Result<(), Error> {
+        // El código está raro con el fin no romper las reglas de ownership
+        if self.buscar_candidato(&id_candidato).is_none() {
+            Err(Error::CandidatoNoExistente)
+        } else if let Some(votante) = self.buscar_votante(&id_votante) {
+            votante
+                .votar()
+                .map(|()| self.buscar_candidato(&id_candidato).unwrap().votar())
+        } else {
+            Err(Error::VotanteNoExistente)
         }
     }
 }

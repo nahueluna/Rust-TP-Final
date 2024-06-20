@@ -219,15 +219,7 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn votar(&self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
             if let Some(mut eleccion) = self.elecciones.get(id_votacion) {
-                if let Some(votante) = eleccion.buscar_votante(&self.env().caller()) {
-                    if votante.esta_aprobado() {
-                        votante.votar()
-                    } else {
-                        Err(Error::PermisosInsuficientes)
-                    }
-                } else {
-                    Err(Error::UsuarioNoExistente)
-                }
+                eleccion.votar(self.env().caller(), id_candidato)
             } else {
                 Err(Error::VotacionNoExiste)
             }
