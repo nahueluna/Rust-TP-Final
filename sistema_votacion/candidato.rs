@@ -24,13 +24,26 @@ impl Candidato {
         }
     }
 
-    /// Regresa `true` si el candidato está aprobado, sino `false`
+    /// Retorna `true` si el candidato está aprobado, sino `false`
     pub fn esta_aprobado(&self) -> bool {
         matches!(self.aprobacion, EstadoAprobacion::Aprobado)
     }
 
-    /// Regresa `true` si el candidato está rechazado, sino `false`
+    /// Retorna `true` si el candidato está rechazado, sino `false`
     pub fn esta_rechazado(&self) -> bool {
         matches!(self.aprobacion, EstadoAprobacion::Rechazado)
+    }
+
+    /// Retorna `true` si el candidato está en estado pendiente, sino `false`
+    pub fn esta_pendiente(&self) -> bool {
+        matches!(self.aprobacion, EstadoAprobacion::Pendiente)
+    }
+
+    /// Modifica el estado de aprobacion si el recibido es distinto de `Pendiente`
+    pub fn cambiar_estado_aprobacion(&mut self, estado: EstadoAprobacion) {
+        match estado {
+            EstadoAprobacion::Pendiente => (),
+            _ => self.aprobacion = estado,
+        }      
     }
 }

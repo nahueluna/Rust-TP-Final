@@ -12,6 +12,7 @@ mod sistema_votacion {
     use crate::eleccion::Eleccion;
     use crate::eleccion::Rol;
     use crate::enums::Error;
+    use crate::enums::EstadoAprobacion;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use ink::prelude::{string::String, vec::Vec};
@@ -65,7 +66,7 @@ mod sistema_votacion {
             }
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if votacion.buscar_miembro(&id, None).is_some() {
+                if votacion.existe_usuario(&id) {
                     match rol {
                         Rol::Candidato => Err(Error::CandidatoExistente),
                         Rol::Votante => Err(Error::VotanteExistente),
@@ -138,72 +139,41 @@ mod sistema_votacion {
             }
         }
 
-        /// Permite al administrador aprobar a un miembro de una eleccion ya sea un Votante o Candidato
-        /// Retorna Error::PermisosInsuficientes si un Usuario intenta acceder
-        /// Retorna Error::CandidatoYaAprobado si el Candidato ya fue aprobado
-        /// Retorna Error::VotanteYaAprobado si el Votante ya fue aprobado
-        /// Retorna Error::CandidatoNoExistente si el Candidato no existe
-        /// Retorna Error::VotanteNoExistente si el Votante no existe
-        /// Retorna Error::VotacionNoExiste si la Eleccion no existe
+        /// Permite al administrador aprobar o rechazar un miembro de una eleccion, ya sea un `Votante` o `Candidato`.
+        /// 
+        /// # Retorno
+        /// * `Error::PermisosInsuficientes` si un Usuario distinto del administrador intenta acceder.
+        /// * `Error::CandidatoYaAprobado` si el Candidato ya fue aprobado.
+        /// * `Error::VotanteYaAprobado` si el Votante ya fue aprobado.
+        /// * `Error::CandidatoYaRechazado` si el Candidato ya fue rechazado.
+        /// * `Error::VotanteYaRechazado` si el Votante ya fue rechazado.
+        /// * `Error::CandidatoNoExistente` si el Candidato no existe.
+        /// * `Error::VotanteNoExistente` si el Votante no existe.
+        /// * `Error::VotacionNoExiste` si la Eleccion no existe.
         #[ink(message)]
-        pub fn aprobar(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol) -> Result<(), Error> {
-            if !self.es_admin() {
-                return Err(Error::PermisosInsuficientes);
-            }
-            
-            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
-
-                    if votacion.esta_aprobado(&id_miembro, &rol) {
-                        match rol {
-                            Rol::Candidato => Err(Error::CandidatoYaAprobado),
-                            Rol::Votante => Err(Error::VotanteYaAprobado),
-                        }
-                    } else {
-                        votacion.aprobar(id_miembro, &rol)
-                    }
-                } else {
-                    match rol {
-                        Rol::Candidato => Err(Error::CandidatoNoExistente),
-                        Rol::Votante => Err(Error::VotanteNoExistente),
-                    }
-                }
-            } else {
-                Err(Error::VotacionNoExiste)
-            }
-
-        }
-
-        /// Permite al administrador rechazar a un miembro de una eleccion ya sea un `Votante` o `Candidato`
-        /// Retorna `Error::PermisosInsuficientes` si un Usuario intenta acceder
-        /// Retorna `Error::CandidatoYaAprobado` si el Candidato fue previamente aprobado
-        /// Retorna `Error::VotanteYaAprobado` si el Votante fue previamente aprobado
-        /// Retorna `Error::CandidatoYaRechazado` si el candidato ya fue rechazado
-        /// Retorna `Error::VotanteYaRechazado` si el votante ya fue rechazado
-        /// Retorna `Error::CandidatoNoExistente` si el Candidato no existe
-        /// Retorna `Error::VotanteNoExistente` si el Votante no existe
-        /// Retorna `Error::VotacionNoExiste` si la Eleccion no existe
-        #[ink(message)]
-        pub fn rechazar(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol) -> Result<(), Error> {
+        pub fn cambiar_estado_aprobacion(&mut self, id_votacion: u32, id_miembro: AccountId, rol: Rol, estado: EstadoAprobacion) -> Result<(), Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if let Some(_) = votacion.buscar_miembro(&id_miembro, Some(&rol)) {
+                let usuario = votacion.buscar_votante(&id_miembro); // Esto es lo que esta mal, debe ser Candidato o Votante (decidido de forma dinamica)
+                
+                if let Some(u) = usuario {
 
-                    if votacion.esta_aprobado(&id_miembro, &rol) {
+                    if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
                         match rol {
                             Rol::Candidato => Err(Error::CandidatoYaAprobado),
                             Rol::Votante => Err(Error::VotanteYaAprobado),
                         }
-                    } else if votacion.esta_rechazado(&id_miembro, &rol) {
+                    } else if u.esta_rechazado() && estado == EstadoAprobacion::Rechazado {
                         match rol {
                             Rol::Candidato => Err(Error::CandidatoYaRechazado),
                             Rol::Votante => Err(Error::VotanteYaRechazado),
                         }
                     } else {
-                        votacion.rechazar(id_miembro, &rol)
+                        u.cambiar_estado_aprobacion(estado);
+                        Ok(())
                     }
                 } else {
                     match rol {
@@ -214,6 +184,7 @@ mod sistema_votacion {
             } else {
                 Err(Error::VotacionNoExiste)
             }
+
         }
 
         /// Método interno que retorna `true` si el invocante del contrato es un administrador;
