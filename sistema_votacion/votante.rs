@@ -1,6 +1,6 @@
 use ink::primitives::AccountId;
 
-use crate::enums::EstadoAprobacion;
+use crate::enums::{Error, EstadoAprobacion};
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
@@ -24,6 +24,17 @@ impl Votante {
         }
     }
 
+    /// Si el votante no `ha_votado`, se invierte el booleano `ha_votado`.
+    /// Si el votante `ha_votado` se devuelve un `Error::VotanteYaVoto`
+    pub fn votar(&mut self) -> Result<(), Error> {
+        if self.ha_votado {
+            Err(Error::VotanteYaVoto)
+        } else {
+            self.ha_votado = !self.ha_votado;
+            Ok(())
+        }
+    }
+
     /// Retorna `true` si el votante está aprobado, sino `false`
     pub fn esta_aprobado(&self) -> bool {
         matches!(self.aprobacion, EstadoAprobacion::Aprobado)
@@ -44,7 +55,7 @@ impl Votante {
         match estado {
             EstadoAprobacion::Pendiente => (),
             _ => self.aprobacion = estado,
-        }      
+        }
     }
-    
 }
+

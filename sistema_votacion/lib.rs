@@ -213,6 +213,26 @@ mod sistema_votacion {
             }
         }
 
+        // Le permite a un registrado en el sistema votar por un candidato
+        // `id_candidato` en una elección `id_votacion`, solo si el usuario
+        // invocante está aprobado en la misma.
+        #[ink(message)]
+        pub fn votar(&self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
+            if let Some(mut eleccion) = self.elecciones.get(id_votacion) {
+                if let Some(votante) = eleccion.buscar_votante(&self.env().caller()) {
+                    if votante.esta_aprobado() {
+                        votante.votar()
+                    } else {
+                        Err(Error::PermisosInsuficientes)
+                    }
+                } else {
+                    Err(Error::UsuarioNoExistente)
+                }
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
         /// Método interno que retorna `true` si el invocante del contrato es un administrador;
         /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
