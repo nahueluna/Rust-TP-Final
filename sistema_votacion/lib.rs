@@ -163,9 +163,7 @@ mod sistema_votacion {
             }
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                let usuario = votacion.buscar_votante(&id_miembro); // Esto es lo que esta mal, debe ser Candidato o Votante (decidido de forma dinamica)
-
-                if let Some(u) = usuario {
+                if let Some(u) = votacion.buscar_miembro(&id_miembro, &rol) {
                     if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
                         match rol {
                             Rol::Candidato => Err(Error::CandidatoYaAprobado),

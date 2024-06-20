@@ -63,24 +63,15 @@ impl Eleccion {
         }
     }
 
-    /// Busca un votante con un AccountId determinado
-    /// Retorna `Some(&mut Votante)` si lo halla, sino devuelve `None`.
-    pub fn buscar_votante(&mut self, id: &AccountId) -> Option<&mut Votante> {
-        if let Some(index) = self.get_posicion_miembro(id, &Rol::Votante) {
-            return self.votantes.get_mut(index);
+    /// Busca un votante o un candidato con un AccountId determinado
+    /// Retorna `Some(&mut Votante)` o `Some(&mut Candidato)`, respectivamente,
+    /// si lo halla, sino devuelve `None`.
+    pub fn buscar_miembro(&mut self, id: &AccountId, rol: &Rol) -> Option<&mut Votante> {
+        if let Some(index) = self.get_posicion_miembro(id, rol) {
+            self.votantes.get_mut(index)
+        } else {
+            None
         }
-
-        None
-    }
-
-    /// Busca un candidato con un AccountId determinado
-    /// Retorna `Some(&mut Candidato)` si lo halla, sino devuelve `None`.
-    pub fn buscar_candidato(&mut self, id: &AccountId) -> Option<&mut Candidato> {
-        if let Some(index) = self.get_posicion_miembro(id, &Rol::Candidato) {
-            return self.candidatos.get_mut(index);
-        }
-
-        None
     }
 
     /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
@@ -137,12 +128,17 @@ impl Eleccion {
         // El código está raro con el fin no romper las reglas de ownership
         if self.estado != EstadoDeEleccion::EnCurso {
             Err(Error::VotacionFueraDeTermino)
-        } else if self.buscar_candidato(&id_candidato).is_none() {
+        } else if self
+            .buscar_miembro(&id_candidato, &Rol::Candidato)
+            .is_none()
+        {
             Err(Error::CandidatoNoExistente)
-        } else if let Some(votante) = self.buscar_votante(&id_votante) {
-            votante
-                .votar()
-                .map(|()| self.buscar_candidato(&id_candidato).unwrap().votar())
+        } else if let Some(votante) = self.buscar_miembro(&id_votante, &Rol::Votante) {
+            votante.votar().map(|()| {
+                self.buscar_miembro(&id_candidato, &Rol::Votante)
+                    .unwrap()
+                    .votar()
+            })?
         } else {
             Err(Error::VotanteNoExistente)
         }
