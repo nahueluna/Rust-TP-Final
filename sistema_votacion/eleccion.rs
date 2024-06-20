@@ -1,4 +1,4 @@
-use crate::enums::{EstadoAprobacion, Error};
+use crate::enums::{EstadoAprobacion, Error, EstadoDeEleccion};
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::{string::String, vec::Vec};
@@ -19,6 +19,7 @@ pub(crate) struct Eleccion {
     puesto: String,
     inicio: Fecha,
     fin: Fecha,
+    estado: EstadoDeEleccion,
 }
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
@@ -37,6 +38,7 @@ impl Eleccion {
             puesto,
             inicio,
             fin,
+            estado: EstadoDeEleccion::Pendiente,
         }
     }
 
@@ -168,6 +170,22 @@ impl Eleccion {
                 }
                 Err(Error::VotanteNoExistente)
             }
+        }
+    }
+
+    pub fn get_candidatos(&self) -> Result<Vec<usize>,Error> {
+        if self.estado == EstadoDeEleccion::EnCurso {
+            let id_candidatos: Vec<usize> = self.candidatos.iter().enumerate().map(|(pos, _)| pos + 1).collect();
+            return Ok(id_candidatos);
+        }
+        Err(Error::VotacionNoIniciada)
+    }
+
+    pub fn consultar_estado(&self) -> String {
+        match self.estado {
+            EstadoDeEleccion::EnCurso => return "La eleccion está en curso".to_string(),
+            EstadoDeEleccion::Pendiente => return "La eleccion todavia no inició".to_string(),
+            EstadoDeEleccion::Finalizada => return "La eleccion ya ha finalizado".to_string(),
         }
     }
 }

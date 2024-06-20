@@ -28,4 +28,15 @@ pub enum Error {
     VotanteYaRechazado,      //Intentar rechazar un candidato que ya fue rechazado   
     CandidatoYaRechazado,    //Intentar rechazar un candidato que ya fue rechazado
     VotacionNoExiste,        //Intentar registrar un votante en una eleccion que no existe.
+    VotacionNoIniciada,      //Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
+}
+
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+#[derive(Debug,PartialEq)]
+// Estados que puede tener la eleccion
+pub enum EstadoDeEleccion {
+    Pendiente,
+    EnCurso,
+    Finalizada,
 }
