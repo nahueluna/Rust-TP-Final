@@ -85,6 +85,7 @@ mod sistema_votacion {
                     }
                 } else {
                     votacion.añadir_miembro(id, rol);
+                    self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
                     Ok(())
                 }
             } else {
@@ -188,6 +189,7 @@ mod sistema_votacion {
                         }
                     } else {
                         u.cambiar_estado_aprobacion(estado);
+                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
                         Ok(())
                     }
                 } else {
