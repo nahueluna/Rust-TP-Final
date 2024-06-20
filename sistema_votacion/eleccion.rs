@@ -112,14 +112,14 @@ impl Eleccion {
         match rol {
             Rol::Votante => {
                 for v in self.votantes.iter() {
-                    if !v.esta_aprobado() {
+                    if v.esta_pendiente() {
                         no_verificados.push(v.id);
                     }
                 }
             }
             Rol::Candidato => {
                 for c in self.candidatos.iter() {
-                    if !c.esta_aprobado() {
+                    if c.esta_pendiente() {
                         no_verificados.push(c.id);
                     }
                 }
