@@ -191,8 +191,7 @@ mod sistema_votacion {
             }
         }
 
-        /// Retorna los candidatos aprobados en la elección de id `id_votacion`, solo si el
-        /// usuario también se encuentra aprobado.
+        /// Retorna los candidatos aprobados en la elección de id `id_votacion`
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
         #[ink(message)]
