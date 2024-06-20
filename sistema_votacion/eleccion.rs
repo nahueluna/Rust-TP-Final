@@ -1,8 +1,8 @@
-use crate::enums::{Error, EstadoDeEleccion};
+use crate::enums::EstadoDeEleccion;
 use crate::votante::Votante;
 use crate::{candidato::Candidato, fecha::Fecha};
-use ink::prelude::{string::String, vec::Vec};
 use ink::prelude::string::ToString;
+use ink::prelude::{string::String, vec::Vec};
 use ink::primitives::AccountId;
 
 /*
@@ -86,8 +86,8 @@ impl Eleccion {
     /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
     /// sea `Candidato` o `Votante`
     pub fn existe_usuario(&self, id: &AccountId) -> bool {
-        self.votantes.iter().any(|vot| vot.id == *id) ||
-        self.candidatos.iter().any(|cand| cand.id == *id)
+        self.votantes.iter().any(|vot| vot.id == *id)
+            || self.candidatos.iter().any(|cand| cand.id == *id)
     }
 
     /// Retorna un `Vec<AccountId>` de los usuarios que se correspondan al rol `rol`.
@@ -114,12 +114,9 @@ impl Eleccion {
         no_verificados
     }
 
-    pub fn get_candidatos(&self) -> Result<Vec<usize>,Error> {
-        if self.estado == EstadoDeEleccion::EnCurso {
-            let id_candidatos: Vec<usize> = self.candidatos.iter().enumerate().map(|(pos, _)| pos + 1).collect();
-            return Ok(id_candidatos);
-        }
-        Err(Error::VotacionNoIniciada)
+    /// Retorna una lista de candidatos. Si no los hay retorna la lista vacía.
+    pub fn get_candidatos(&self) -> Vec<AccountId> {
+        self.candidatos.iter().map(|c| c.id).collect()
     }
 
     pub fn consultar_estado(&self) -> String {
