@@ -38,4 +38,13 @@ impl Votante {
     pub fn esta_pendiente(&self) -> bool {
         matches!(self.aprobacion, EstadoAprobacion::Pendiente)
     }
+
+    /// Modifica el estado de aprobacion si el recibido es distinto de `Pendiente`
+    pub fn cambiar_estado_aprobacion(&mut self, estado: EstadoAprobacion) {
+        match estado {
+            EstadoAprobacion::Pendiente => (),
+            _ => self.aprobacion = estado,
+        }      
+    }
+    
 }
