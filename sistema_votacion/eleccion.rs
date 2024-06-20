@@ -135,7 +135,9 @@ impl Eleccion {
     // Una vez que esto ocurre, el votante no puede volver a votar
     pub fn votar(&mut self, id_votante: AccountId, id_candidato: AccountId) -> Result<(), Error> {
         // El código está raro con el fin no romper las reglas de ownership
-        if self.buscar_candidato(&id_candidato).is_none() {
+        if self.estado != EstadoDeEleccion::EnCurso {
+            Err(Error::VotacionFueraDeTermino)
+        } else if self.buscar_candidato(&id_candidato).is_none() {
             Err(Error::CandidatoNoExistente)
         } else if let Some(votante) = self.buscar_votante(&id_votante) {
             votante

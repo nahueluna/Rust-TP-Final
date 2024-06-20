@@ -17,20 +17,21 @@ pub enum EstadoAprobacion {
 #[derive(Debug)]
 /// Representa un error al llamar a un metodo del sistema.
 pub enum Error {
-    PermisosInsuficientes, //Intentar acceder a un metodo del administrador sin serlo.
-    UsuarioExistente,      //Intentar registrar un usuario que ya existe.
-    UsuarioNoExistente,    //Intentar registrar como votante/candidato a un usuario que no existe.
-    VotanteExistente,      //Intentar registrar un votante que ya existe.
-    CandidatoExistente,    //Intentar registrar un candidato que ya existe.
-    VotanteNoExistente,    //Intentar aprobar un votante que no existe.
-    CandidatoNoExistente,  //Intentar aprobar un candidato que no existe.
-    VotanteYaAprobado,     //Intentar aprobar un votante que ya fue aprpbado.
-    CandidatoYaAprobado,   //Intentar aprobar un candidato que ya fue aprobado.
-    VotanteYaRechazado,    //Intentar rechazar un candidato que ya fue rechazado
-    CandidatoYaRechazado,  //Intentar rechazar un candidato que ya fue rechazado
-    VotacionNoExiste,      //Intentar registrar un votante en una eleccion que no existe.
-    VotacionNoIniciada, //Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
-    VotanteYaVoto,      //El votante ya votó, no puede hacerlo dos veces
+    PermisosInsuficientes,  // Intentar acceder a un metodo del administrador sin serlo.
+    UsuarioExistente,       // Intentar registrar un usuario que ya existe.
+    UsuarioNoExistente,     // Intentar registrar como votante/candidato a un usuario que no existe.
+    VotanteExistente,       // Intentar registrar un votante que ya existe.
+    CandidatoExistente,     // Intentar registrar un candidato que ya existe.
+    VotanteNoExistente,     // Intentar aprobar un votante que no existe.
+    CandidatoNoExistente,   // Intentar aprobar un candidato que no existe.
+    VotanteYaAprobado,      // Intentar aprobar un votante que ya fue aprpbado.
+    CandidatoYaAprobado,    // Intentar aprobar un candidato que ya fue aprobado.
+    VotanteYaRechazado,     // Intentar rechazar un candidato que ya fue rechazado
+    CandidatoYaRechazado,   // Intentar rechazar un candidato que ya fue rechazado
+    VotacionNoExiste,       // Intentar registrar un votante en una eleccion que no existe.
+    VotacionNoIniciada,     // Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
+    VotanteYaVoto,          // El votante ya votó, no puede hacerlo dos veces
+    VotacionFueraDeTermino  // Se intenta votar fuera del plazo 
 }
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
