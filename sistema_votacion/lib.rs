@@ -1,12 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use self::sistema_votacion::SistemaVotacion;
 pub use self::sistema_votacion::SistemaVotacionRef;
 
 mod candidato;
 mod eleccion;
-mod enums;
+pub mod enums;
 mod fecha;
-mod usuario;
+pub mod usuario;
 mod votante;
 
 #[ink::contract]
@@ -214,7 +215,7 @@ mod sistema_votacion {
                 // retorna un id inválido, algo MUY MALO HA PASADO, y debería finalizar la
                 // ejecución.
                 Ok(eleccion
-                    .get_candidatos()
+                    .get_miembros(&Rol::Candidato)
                     .iter()
                     .map(|id| (*id, self.usuarios.get(id).unwrap()))
                     .collect())
@@ -257,13 +258,18 @@ mod sistema_votacion {
         fn es_admin(&self) -> bool {
             self.env().caller() == self.admin
         }
+
+        #[ink(message)]
+        pub fn get_hash_contrato(&self) -> Hash {
+            self.env().own_code_hash().unwrap()
+        }
     }
 
-impl Default for SistemaVotacion {
-    fn default() -> Self {
-        Self::new()
+    impl Default for SistemaVotacion {
+        fn default() -> Self {
+            Self::new()
+        }
     }
-}
 
     #[cfg(test)]
     mod tests {

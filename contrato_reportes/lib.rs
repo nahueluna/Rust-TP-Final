@@ -2,6 +2,9 @@
 
 #[ink::contract]
 mod reportes {
+    use ink::prelude::{string::String, vec::Vec};
+    use sistema_votacion::enums::Error;
+    use sistema_votacion::usuario::Usuario;
     use sistema_votacion::SistemaVotacionRef;
 
     #[ink(storage)]
@@ -20,6 +23,15 @@ mod reportes {
                     .instantiate_v1()
                     .gas_limit(0)
                     .instantiate(),
+            }
+        }
+
+        #[ink(message)]
+        pub fn test(&self, nombre: String, apellido: String) -> Result<Usuario, Error> {
+            if nombre == *"error" {
+                Err(Error::VotacionNoExiste)
+            } else {
+                Ok(Usuario::new(nombre, apellido))
             }
         }
 
