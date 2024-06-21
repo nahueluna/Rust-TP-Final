@@ -14,10 +14,10 @@ mod sistema_votacion {
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
+    use contrato_reportes::ReportesRef;
+    use ink::codegen::TraitCallBuilder;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
-    //use ink::codegen::TraitCallBuilder;
-    use contrato_reportes::ReportesRef;
 
     /// Estructura principal del sistema. Consta del administrador electoral,
     /// una coleccion de elecciones y la totalidad de usuarios del sistema (solo su info personal)
@@ -26,27 +26,25 @@ mod sistema_votacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<AccountId, Usuario>,
-        // contrato_reportes: ReportesRef, // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
+        contrato_reportes: ReportesRef,
     }
 
     impl SistemaVotacion {
         // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new(
-            // hash_contrato_reportes: Hash // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
-        ) -> Self {
+        pub fn new(hash_contrato_reportes: Hash) -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
-                // NO DESCOMENTAR HASTA NO HABER ARREGLADO EL PROBLEMA
-                // contrato_reportes: ReportesRef::new(true)
-                //     .instantiate_v1()
-                //     .code_hash(hash_contrato_reportes)
-                //     .endowment(0)                          // no se que hace esto #TODO
-                //     .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])  // ni esto
-                //     .instantiate(),
+                contrato_reportes: ReportesRef::new(true)
+                    .code_hash(hash_contrato_reportes)
+                    .instantiate_v1()
+                    .gas_limit(0)
+                    .endowment(0)
+                    .salt_bytes([])
+                    .instantiate(),
             }
         }
 
@@ -112,7 +110,14 @@ mod sistema_votacion {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
-            let inicio = Fecha::new(0, minuto_inicio, hora_inicio, dia_inicio, mes_inicio, año_inicio);
+            let inicio = Fecha::new(
+                0,
+                minuto_inicio,
+                hora_inicio,
+                dia_inicio,
+                mes_inicio,
+                año_inicio,
+            );
             let fin = Fecha::new(0, minuto_fin, hora_fin, dia_fin, mes_fin, año_fin);
             let id: u32 = self.elecciones.len() + 1;
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
@@ -229,13 +234,13 @@ mod sistema_votacion {
         #[ink(message)]
         /// Recibe el id de una votacion y retorna su estado actual.
         /// Devuelve un error si la votacion no existe.
-        pub fn consultar_estado(&self,id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
+        pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
             let tiempo = self.env().block_timestamp();
-            if let Some(eleccion) = self.elecciones.get(id_votacion-1) {
-                if tiempo<eleccion.inicio.get_tiempo_unix() {
-                    return Ok(EstadoDeEleccion::Pendiente)
-                } else if tiempo<eleccion.fin.get_tiempo_unix() {
-                    return Ok(EstadoDeEleccion::EnCurso)
+            if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+                if tiempo < eleccion.inicio.get_tiempo_unix() {
+                    return Ok(EstadoDeEleccion::Pendiente);
+                } else if tiempo < eleccion.fin.get_tiempo_unix() {
+                    return Ok(EstadoDeEleccion::EnCurso);
                 }
                 Ok(EstadoDeEleccion::Finalizada)
             } else {
