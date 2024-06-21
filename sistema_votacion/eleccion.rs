@@ -124,13 +124,22 @@ impl Eleccion {
         no_verificados
     }
 
-    /// Retorna una lista de candidatos aprobados. Si no los hay retorna la lista vacía.
-    pub fn get_candidatos(&self) -> Vec<AccountId> {
-        self.candidatos
-            .iter()
-            .filter(|c| c.esta_aprobado())
-            .map(|c| c.id)
-            .collect()
+    /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
+    pub fn get_miembros(&self, rol: &Rol) -> Vec<AccountId> {
+        match rol {
+            Rol::Candidato => self
+                .candidatos
+                .iter()
+                .filter(|c| c.esta_aprobado())
+                .map(|c| c.id)
+                .collect(),
+            Rol::Votante => self
+                .votantes
+                .iter()
+                .filter(|c| c.esta_aprobado())
+                .map(|c| c.id)
+                .collect(),
+        }
     }
 
     // Permite que el votante `id_votante` vote al candidato `id_cantidato`
