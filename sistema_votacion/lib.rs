@@ -269,6 +269,20 @@ mod sistema_votacion {
 
     #[cfg(test)]
     mod tests {
+
+
+        use ink::env::hash::{Blake2x256, CryptoHash};
+
         use super::*;
+
+        #[ink::test]
+        fn probar() {
+            let dato = b"probando";
+            let mut output = [0u8; 32];
+            Blake2x256::hash(dato, &mut output);
+            let hash = Hash::from(output);
+            let contrato = SistemaVotacion::new(hash);  
+
+        }
     }
 }
