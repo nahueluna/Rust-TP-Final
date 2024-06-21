@@ -7,6 +7,7 @@ mod candidato;
 mod eleccion;
 pub mod enums;
 mod fecha;
+pub mod reportes;
 pub mod usuario;
 mod votante;
 
@@ -16,8 +17,9 @@ mod sistema_votacion {
     use crate::eleccion::Rol;
     use crate::enums::*;
     use crate::fecha::Fecha;
+    use crate::reportes::ReporteVotantes;
     use crate::usuario::Usuario;
-    use ink::prelude::{string::String, vec::Vec};
+    use ink::prelude::{borrow::ToOwned, string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
@@ -257,6 +259,23 @@ mod sistema_votacion {
         /// `false` en cualquier otro caso
         fn es_admin(&self) -> bool {
             self.env().caller() == self.admin
+        }
+
+        // devuelve los votantes registrados y aprobados en una elección de id `id_eleccion`
+        #[ink(message)]
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                Ok(eleccion
+                    .get_miembros(&Rol::Votante)
+                    .iter()
+                    .map(|id| {
+                        let u = self.usuarios.get(id).unwrap();
+                        ReporteVotantes::new(id.to_owned(), u.nombre, u.apellido)
+                    })
+                    .collect())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
         }
 
         #[ink(message)]

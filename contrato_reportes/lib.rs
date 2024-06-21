@@ -4,6 +4,7 @@
 mod reportes {
     use ink::prelude::{string::String, vec::Vec};
     use sistema_votacion::enums::Error;
+    use sistema_votacion::reportes::ReporteVotantes;
     use sistema_votacion::usuario::Usuario;
     use sistema_votacion::SistemaVotacionRef;
 
@@ -36,18 +37,8 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn reporte_votantes(&self) {
-            todo!()
-        }
-
-        #[ink(message)]
-        pub fn reporte_participacion(&self) {
-            todo!()
-        }
-
-        #[ink(message)]
-        pub fn reporte_resultado(&self) {
-            todo!()
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
+            self.contrato_votacion.reporte_votantes(id_eleccion)
         }
     }
 
