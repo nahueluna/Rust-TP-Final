@@ -11,8 +11,7 @@ mod votante;
 mod sistema_votacion {
     use crate::eleccion::Eleccion;
     use crate::eleccion::Rol;
-    use crate::enums::Error;
-    use crate::enums::EstadoAprobacion;
+    use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use ink::prelude::{string::String, vec::Vec};
@@ -99,10 +98,12 @@ mod sistema_votacion {
         pub fn crear_eleccion(
             &mut self,
             puesto: String,
+            minuto_inicio: u8,
             hora_inicio: u8,
             dia_inicio: u8,
             mes_inicio: u8,
             año_inicio: u16,
+            minuto_fin: u8,
             hora_fin: u8,
             dia_fin: u8,
             mes_fin: u8,
@@ -111,8 +112,8 @@ mod sistema_votacion {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
-            let inicio = Fecha::new(0, 0, hora_inicio, dia_inicio, mes_inicio, año_inicio);
-            let fin = Fecha::new(0, 0, hora_fin, dia_fin, mes_fin, año_fin);
+            let inicio = Fecha::new(0, minuto_inicio, hora_inicio, dia_inicio, mes_inicio, año_inicio);
+            let fin = Fecha::new(0, minuto_fin, hora_fin, dia_fin, mes_fin, año_fin);
             let id: u32 = self.elecciones.len() + 1;
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
@@ -220,6 +221,23 @@ mod sistema_votacion {
                     .iter()
                     .map(|id| (*id, self.usuarios.get(id).unwrap()))
                     .collect())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
+        #[ink(message)]
+        /// Recibe el id de una votacion y retorna su estado actual.
+        /// Devuelve un error si la votacion no existe.
+        pub fn consultar_estado(&self,id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
+            let tiempo = self.env().block_timestamp();
+            if let Some(eleccion) = self.elecciones.get(id_votacion-1) {
+                if tiempo<eleccion.inicio.get_tiempo_unix() {
+                    return Ok(EstadoDeEleccion::Pendiente)
+                } else if tiempo<eleccion.fin.get_tiempo_unix() {
+                    return Ok(EstadoDeEleccion::EnCurso)
+                }
+                Ok(EstadoDeEleccion::Finalizada)
             } else {
                 Err(Error::VotacionNoExiste)
             }

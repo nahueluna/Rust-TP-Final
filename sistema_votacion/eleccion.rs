@@ -18,8 +18,8 @@ pub(crate) struct Eleccion {
     votantes: Vec<Votante>,
     candidatos: Vec<Candidato>,
     puesto: String,
-    inicio: Fecha,
-    fin: Fecha,
+    pub inicio: Fecha,
+    pub fin: Fecha,
     estado: EstadoDeEleccion,
 }
 
