@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 ink = { version = "5.0.0", default-features = false }
-contrato_reportes = { path = "contrato_reportes", default-features = false, features = [
+contrato_reportes = { path = "../contrato_reportes", default-features = false, features = [
   "ink-as-dependency",
 ] }
 
