@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use self::sistema_votacion::SistemaVotacionRef;
+
 mod candidato;
 mod eleccion;
 mod enums;
@@ -14,8 +16,6 @@ mod sistema_votacion {
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
-    use contrato_reportes::ReportesRef;
-    use ink::codegen::TraitCallBuilder;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
@@ -26,25 +26,17 @@ mod sistema_votacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<AccountId, Usuario>,
-        contrato_reportes: ReportesRef,
     }
 
     impl SistemaVotacion {
         // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new(hash_contrato_reportes: Hash) -> Self {
+        pub fn new() -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
-                contrato_reportes: ReportesRef::new(true)
-                    .code_hash(hash_contrato_reportes)
-                    .instantiate_v1()
-                    .gas_limit(0)
-                    .endowment(0)
-                    .salt_bytes([])
-                    .instantiate(),
             }
         }
 
@@ -267,13 +259,16 @@ mod sistema_votacion {
         }
     }
 
+impl Default for SistemaVotacion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
     #[cfg(test)]
     mod tests {
-
-
-        use ink::env::hash::{Blake2x256, CryptoHash};
-
         use super::*;
+        use ink::env::hash::{Blake2x256, CryptoHash};
 
         #[ink::test]
         fn probar() {
@@ -281,8 +276,7 @@ mod sistema_votacion {
             let mut output = [0u8; 32];
             Blake2x256::hash(dato, &mut output);
             let hash = Hash::from(output);
-            let contrato = SistemaVotacion::new(hash);  
-
+            let contrato = SistemaVotacion::new();
         }
     }
 }
