@@ -133,14 +133,6 @@ impl Eleccion {
             .collect()
     }
 
-    pub fn consultar_estado(&self) -> String {
-        match self.estado {
-            EstadoDeEleccion::EnCurso => "La eleccion está en curso".to_string(),
-            EstadoDeEleccion::Pendiente => "La eleccion todavia no inició".to_string(),
-            EstadoDeEleccion::Finalizada => "La eleccion ya ha finalizado".to_string(),
-        }
-    }
-
     // Permite que el votante `id_votante` vote al candidato `id_cantidato`
     // Una vez que esto ocurre, el votante no puede volver a votar
     pub fn votar(&mut self, id_votante: AccountId, id_candidato: AccountId) -> Result<(), Error> {
