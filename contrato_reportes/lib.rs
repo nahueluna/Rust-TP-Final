@@ -29,8 +29,18 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
-            self.contrato_votacion.reporte_votantes(id_eleccion)
+        pub fn reporte_votantes(&self, id_eleccion: u32) {
+            todo!()
+        }
+
+        #[ink(message)]
+        pub fn reporte_participacion(&self, id_eleccion: u32) {
+            todo!()
+        }
+
+        #[ink(message)]
+        pub fn reporte_resultado(&self, id_eleccion: u32) {
+            todo!()
         }
     }
 
