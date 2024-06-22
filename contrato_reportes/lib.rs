@@ -15,16 +15,8 @@ mod reportes {
 
     impl Reportes {
         #[ink(constructor)]
-        pub fn new(hash_contrato_sistema_votacion: Hash) -> Self {
-            Self {
-                contrato_votacion: SistemaVotacionRef::new()
-                    .code_hash(hash_contrato_sistema_votacion)
-                    .endowment(0)
-                    .salt_bytes([])
-                    .instantiate_v1()
-                    .gas_limit(0)
-                    .instantiate(),
-            }
+        pub fn new(contrato_votacion: SistemaVotacionRef) -> Self {
+            Self { contrato_votacion }
         }
 
         #[ink(message)]
