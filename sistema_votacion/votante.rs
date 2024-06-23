@@ -62,3 +62,54 @@ impl Votante {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probar_creacion() {
+        let votante_id: [u8; 32] = [0; 32];
+        let votante = Votante::new(AccountId::from(votante_id));
+        assert!(!votante.esta_aprobado());
+        assert!(!votante.esta_rechazado());
+        assert!(votante.esta_pendiente());
+
+        let votante_id: [u8; 32] = [255; 32];
+        let votante = Votante::new(AccountId::from(votante_id));
+        assert!(!votante.esta_aprobado());
+        assert!(!votante.esta_rechazado());
+        assert!(votante.esta_pendiente());
+    }
+
+    #[test]
+    fn probar_votar() {
+        let votante_id: [u8; 32] = [0; 32];
+        let mut votante = Votante::new(AccountId::from(votante_id));
+        assert!(votante.votar().is_ok());
+        assert!(votante.ha_votado);
+        assert!(votante.votar().is_err());
+    }
+
+    #[test]
+    fn probar_estado() {
+        let votante_id: [u8; 32] = [0; 32];
+        let mut votante = Votante::new(AccountId::from(votante_id));
+
+        votante.cambiar_estado_aprobacion(EstadoAprobacion::Aprobado);
+        assert!(votante.esta_aprobado());
+        assert!(!votante.esta_rechazado());
+        assert!(!votante.esta_pendiente());
+
+        votante.cambiar_estado_aprobacion(EstadoAprobacion::Rechazado);
+        assert!(!votante.esta_aprobado());
+        assert!(votante.esta_rechazado());
+        assert!(!votante.esta_pendiente());
+
+        // no cambia el estado si recibe pendiente
+        votante.cambiar_estado_aprobacion(EstadoAprobacion::Pendiente);
+        assert!(!votante.esta_aprobado());
+        assert!(votante.esta_rechazado());
+        assert!(!votante.esta_pendiente());
+    }
+}
