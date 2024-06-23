@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(fecha4.get_tiempo_unix(), 951955200);
         
         // 01/06/2024 10:10:10; epoch 1717236610seg
-        let fecha4 = Fecha::new(10, 10, 10, 1, 6, 2024);
-        assert_eq!(fecha4.get_tiempo_unix(), 1717236610);
+        let fecha5 = Fecha::new(10, 10, 10, 1, 6, 2024);
+        assert_eq!(fecha5.get_tiempo_unix(), 1717236610);
     }
 }

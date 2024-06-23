@@ -321,15 +321,11 @@ mod sistema_votacion {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use ink::env::hash::{Blake2x256, CryptoHash};
 
         #[ink::test]
-        fn probar() {
-            let dato = b"probando";
-            let mut output = [0u8; 32];
-            Blake2x256::hash(dato, &mut output);
-            let hash = Hash::from(output);
-            let contrato = SistemaVotacion::new();
+        fn probar_contrato() {
+            let mut contrato = SistemaVotacion::new();
+            assert!(contrato.registrar_usuario("Jonh".to_string(), "Doe".to_string()).is_ok());
         }
     }
 }
