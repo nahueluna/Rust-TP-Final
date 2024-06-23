@@ -197,3 +197,31 @@ impl Eleccion {
         };
     }
 }
+
+mod tests {
+    use super::*;
+    use crate::fecha::Fecha;
+
+    #[test]
+    fn test_estado_eleccion() {
+        let id = 1;
+        let puesto = "Presidente".to_string();
+        let fecha_inicio = Fecha::new(0, 0, 0, 20, 5, 2024); // 20/05/2024 00:00:00 = 1716163200
+        let fecha_fin = Fecha::new(0, 0, 0, 22, 5, 2024); // 22/05/2024 00:00:00 = 1716336000
+
+        let eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
+
+        assert_eq!(
+            eleccion.consultar_estado(1716249600),
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1672534871),
+            EstadoDeEleccion::Pendiente
+        );
+        assert_eq!(
+            eleccion.consultar_estado(2524611671),
+            EstadoDeEleccion::Finalizada
+        );
+    }
+}
