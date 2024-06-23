@@ -17,7 +17,7 @@ mod sistema_votacion {
     use crate::eleccion::Rol;
     use crate::enums::*;
     use crate::fecha::Fecha;
-    use crate::reportes::ReporteVotantes;
+    use crate::reportes::*;
     use crate::usuario::Usuario;
     use ink::prelude::{borrow::ToOwned, string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
@@ -285,6 +285,22 @@ mod sistema_votacion {
                         ReporteVotantes::new(id.to_owned(), u.nombre, u.apellido)
                     })
                     .collect())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
+        // Devuelve la cantidad de votantes que votaron y la cantidad de votantes
+        #[ink(message)]
+        pub fn reporte_participacion(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<ReporteParticipacion, Error> {
+            if let Some(votacion) = self.elecciones.get(id_eleccion - 1) {
+                Ok(ReporteParticipacion::new(
+                    votacion.cuantos_votaron() as u64,
+                    votacion.votantes.len() as u64,
+                ))
             } else {
                 Err(Error::VotacionNoExiste)
             }

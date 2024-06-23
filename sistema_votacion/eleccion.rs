@@ -15,7 +15,7 @@ use ink::primitives::AccountId;
 #[derive(Debug)]
 pub(crate) struct Eleccion {
     pub(crate) id: u32,
-    votantes: Vec<Votante>,
+    pub(crate) votantes: Vec<Votante>,
     candidatos: Vec<Candidato>,
     puesto: String,
     pub inicio: Fecha,
@@ -160,6 +160,10 @@ impl Eleccion {
                 .map(|c| c.id)
                 .collect(),
         }
+    }
+
+    pub fn cuantos_votaron(&self) -> usize {
+        self.votantes.iter().filter(|v| v.ha_votado).count()
     }
 
     // Permite que el votante `id_votante` vote al candidato `id_cantidato`

@@ -9,9 +9,9 @@ use crate::enums::{Error, EstadoAprobacion};
 /// Representa un votante en una eleccion determinada.
 /// Almacena su AccountId, estado de aprobacion y si voto o no.
 pub struct Votante {
-    pub id: AccountId,
+    pub(crate) id: AccountId,
     pub(crate) aprobacion: EstadoAprobacion,
-    ha_votado: bool,
+    pub(crate) ha_votado: bool,
 }
 
 //#[ink::trait_definition]
