@@ -50,7 +50,7 @@ impl Fecha {
         let dias = Fecha::dias_desde_epoch(año, mes, dia);
         let segundos = (hora as u64 * 3600) + (minuto as u64 * 60) + segundo as u64;
 
-        let tiempo_unix: u64 = (dias * 86400 + segundos) * 1000;
+        let tiempo_unix: u64 = dias * 86400 + segundos;
 
         Fecha {
             segundo,
@@ -72,4 +72,19 @@ impl Fecha {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tiempo_unix() {
+        // 1/1/1970 00:00:00; epoch 0
+        let fecha = Fecha::new(0, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha.get_tiempo_unix(), 0);
+
+        // 1/1/1970 00:00:30; epoch 30seg
+        let fecha = Fecha::new(30, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha.get_tiempo_unix(), 30);
+ 
+        // 1/1/1970 00:01:00; epoch 60seg
+        let fecha = Fecha::new(0, 1, 0, 1, 1, 1970);
+        assert_eq!(fecha.get_tiempo_unix(), 60);
+    }
 }
