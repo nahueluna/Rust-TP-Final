@@ -20,7 +20,6 @@ pub(crate) struct Eleccion {
     puesto: String,
     pub inicio: Fecha,
     pub fin: Fecha,
-    estado: EstadoDeEleccion,
 }
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
@@ -47,17 +46,38 @@ impl Eleccion {
             puesto,
             inicio,
             fin,
-            estado: EstadoDeEleccion::Pendiente,
         }
     }
 
-    pub(crate) fn añadir_miembro(&mut self, id: AccountId, rol: Rol) {
-        match rol {
-            Rol::Candidato => {
-                self.candidatos.push(Candidato::new(id));
-            }
-            Rol::Votante => {
-                self.votantes.push(Votante::new(id));
+    pub fn consultar_estado(&self, tiempo: u64) -> EstadoDeEleccion {
+        if tiempo < self.inicio.get_tiempo_unix() {
+            EstadoDeEleccion::Pendiente
+        } else if tiempo < self.fin.get_tiempo_unix() {
+            EstadoDeEleccion::EnCurso
+        } else {
+            EstadoDeEleccion::Finalizada
+        }
+    }
+
+    pub(crate) fn añadir_miembro(
+        &mut self,
+        id: AccountId,
+        rol: Rol,
+        tiempo: u64,
+    ) -> Result<(), Error> {
+        match self.consultar_estado(tiempo) {
+            EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+            EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
+            EstadoDeEleccion::EnCurso => {
+                match rol {
+                    Rol::Candidato => {
+                        self.candidatos.push(Candidato::new(id));
+                    }
+                    Rol::Votante => {
+                        self.votantes.push(Votante::new(id));
+                    }
+                }
+                Ok(())
             }
         }
     }
@@ -144,23 +164,32 @@ impl Eleccion {
 
     // Permite que el votante `id_votante` vote al candidato `id_cantidato`
     // Una vez que esto ocurre, el votante no puede volver a votar
-    pub fn votar(&mut self, id_votante: AccountId, id_candidato: AccountId) -> Result<(), Error> {
-        // El código está raro con el fin no romper las reglas de ownership
-        if self.estado != EstadoDeEleccion::EnCurso {
-            Err(Error::VotacionFueraDeTermino)
-        } else if self
-            .buscar_miembro(&id_candidato, &Rol::Candidato)
-            .is_none()
-        {
-            Err(Error::CandidatoNoExistente)
-        } else if let Some(votante) = self.buscar_miembro(&id_votante, &Rol::Votante) {
-            votante.votar().map(|()| {
-                self.buscar_miembro(&id_candidato, &Rol::Votante)
-                    .unwrap()
-                    .votar()
-            })?
-        } else {
-            Err(Error::VotanteNoExistente)
-        }
+    pub fn votar(
+        &mut self,
+        id_votante: AccountId,
+        id_candidato: AccountId,
+        tiempo: u64,
+    ) -> Result<(), Error> {
+        return match self.consultar_estado(tiempo) {
+            EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+            EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
+            EstadoDeEleccion::EnCurso => {
+                // El código está raro con el fin no romper las reglas de ownership
+                if self
+                    .buscar_miembro(&id_candidato, &Rol::Candidato)
+                    .is_none()
+                {
+                    Err(Error::CandidatoNoExistente)
+                } else if let Some(votante) = self.buscar_miembro(&id_votante, &Rol::Votante) {
+                    votante.votar().map(|()| {
+                        self.buscar_miembro(&id_candidato, &Rol::Votante)
+                            .unwrap()
+                            .votar()
+                    })?
+                } else {
+                    Err(Error::VotanteNoExistente)
+                }
+            }
+        };
     }
 }
