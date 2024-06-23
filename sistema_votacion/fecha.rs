@@ -76,15 +76,23 @@ mod tests {
     #[test]
     fn test_tiempo_unix() {
         // 1/1/1970 00:00:00; epoch 0
-        let fecha = Fecha::new(0, 0, 0, 1, 1, 1970);
-        assert_eq!(fecha.get_tiempo_unix(), 0);
+        let fecha1 = Fecha::new(0, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha1.get_tiempo_unix(), 0);
 
         // 1/1/1970 00:00:30; epoch 30seg
-        let fecha = Fecha::new(30, 0, 0, 1, 1, 1970);
-        assert_eq!(fecha.get_tiempo_unix(), 30);
+        let fecha2 = Fecha::new(30, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha2.get_tiempo_unix(), 30);
  
         // 1/1/1970 00:01:00; epoch 60seg
-        let fecha = Fecha::new(0, 1, 0, 1, 1, 1970);
-        assert_eq!(fecha.get_tiempo_unix(), 60);
+        let fecha3 = Fecha::new(0, 1, 0, 1, 1, 1970);
+        assert_eq!(fecha3.get_tiempo_unix(), 60);
+        
+        // 31/02/2000 00:00:00; epoch 951955200seg
+        let fecha4 = Fecha::new(0, 0, 0, 31, 2, 2000);
+        assert_eq!(fecha4.get_tiempo_unix(), 951955200);
+        
+        // 01/06/2024 10:10:10; epoch 1717236610seg
+        let fecha4 = Fecha::new(10, 10, 10, 1, 6, 2024);
+        assert_eq!(fecha4.get_tiempo_unix(), 1717236610);
     }
 }
