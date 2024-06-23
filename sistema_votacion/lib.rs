@@ -273,6 +273,11 @@ mod sistema_votacion {
             self.env().caller() == self.admin
         }
 
+        #[ink(message)]
+        pub fn get_time(&self) -> u64 {
+            self.env().block_timestamp()
+        }
+
         // devuelve los votantes registrados y aprobados en una elección de id `id_eleccion`
         #[ink(message)]
         pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
