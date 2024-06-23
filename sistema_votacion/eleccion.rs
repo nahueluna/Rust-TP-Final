@@ -216,8 +216,24 @@ mod tests {
             EstadoDeEleccion::Pendiente
         );
         assert_eq!(
+            eleccion.consultar_estado(1716163199000),  // 19/5/2024 23:59:59
+            EstadoDeEleccion::Pendiente
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716163200000),  // 20/5/2024 00:00:00
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
             eleccion.consultar_estado(1716224400000), // 20/5/2024 17:00:00
             EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716249599000), // 20/5/2024 23:59:59
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716249600000), // 21/5/2024 00:00:00
+            EstadoDeEleccion::Finalizada
         );
         assert_eq!(
             eleccion.consultar_estado(1716310800000), // 21/5/2024 17:00:00

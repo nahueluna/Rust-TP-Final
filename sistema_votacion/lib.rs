@@ -273,11 +273,6 @@ mod sistema_votacion {
             self.env().caller() == self.admin
         }
 
-        #[ink(message)]
-        pub fn get_time(&self) -> u64 {
-            self.env().block_timestamp()
-        }
-
         // devuelve los votantes registrados y aprobados en una elección de id `id_eleccion`
         #[ink(message)]
         pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
@@ -309,11 +304,6 @@ mod sistema_votacion {
             } else {
                 Err(Error::VotacionNoExiste)
             }
-        }
-
-        #[ink(message)]
-        pub fn get_hash_contrato(&self) -> Hash {
-            self.env().own_code_hash().unwrap()
         }
     }
 
