@@ -1,7 +1,7 @@
 [package]
 name = "sistema_votacion"
 version = "0.1.0"
-authors = ["[your_name] <[your_email]>"]
+authors = ["Noxde", "Zajitario", "ferreroianjose", "germangarcia99", "nahueluna", "valentinoamato"]
 edition = "2021"
 
 [dependencies]
