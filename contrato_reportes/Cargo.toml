@@ -1,11 +1,21 @@
 [package]
 name = "contrato_reportes"
 version = "0.1.0"
-authors = ["[your_name] <[your_email]>"]
+authors = [
+  "Noxde",
+  "Zajitario",
+  "ferreroianjose",
+  "germangarcia99",
+  "nahueluna",
+  "valentinoamato",
+]
 edition = "2021"
 
 [dependencies]
 ink = { version = "5.0.0", default-features = false }
+sistema_votacion = { path = "../sistema_votacion", default-features = false, features = [
+  "ink-as-dependency",
+] }
 
 [dev-dependencies]
 ink_e2e = { version = "5.0.0" }
@@ -15,6 +25,6 @@ path = "lib.rs"
 
 [features]
 default = ["std"]
-std = ["ink/std"]
+std = ["ink/std", "sistema_votacion/std"]
 ink-as-dependency = []
 e2e-tests = []

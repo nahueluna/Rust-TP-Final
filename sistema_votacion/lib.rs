@@ -1,10 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
 
+pub use self::sistema_votacion::SistemaVotacion;
+pub use self::sistema_votacion::SistemaVotacionRef;
+
 mod candidato;
 mod eleccion;
-mod enums;
+pub mod enums;
 mod fecha;
-mod usuario;
+pub mod reportes;
+pub mod usuario;
 mod votante;
 
 #[ink::contract]
@@ -13,10 +17,9 @@ mod sistema_votacion {
     use crate::eleccion::Rol;
     use crate::enums::*;
     use crate::fecha::Fecha;
+    use crate::reportes::*;
     use crate::usuario::Usuario;
-    use contrato_reportes::ReportesRef;
-    use ink::codegen::TraitCallBuilder;
-    use ink::prelude::{string::String, vec::Vec};
+    use ink::prelude::{borrow::ToOwned, string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
@@ -26,25 +29,17 @@ mod sistema_votacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
         usuarios: Mapping<AccountId, Usuario>,
-        contrato_reportes: ReportesRef,
     }
 
     impl SistemaVotacion {
         // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
-        pub fn new(hash_contrato_reportes: Hash) -> Self {
+        pub fn new() -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
                 elecciones: StorageVec::new(),
                 usuarios: Mapping::new(),
-                contrato_reportes: ReportesRef::new(true)
-                    .code_hash(hash_contrato_reportes)
-                    .instantiate_v1()
-                    .gas_limit(0)
-                    .endowment(0)
-                    .salt_bytes([])
-                    .instantiate(),
             }
         }
 
@@ -81,9 +76,11 @@ mod sistema_votacion {
                         Rol::Votante => Err(Error::VotanteExistente),
                     }
                 } else {
-                    votacion.añadir_miembro(id, rol);
-                    self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
-                    Ok(())
+                    let r = votacion.añadir_miembro(id, rol, self.env().block_timestamp());
+                    if r.is_ok() {
+                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                    }
+                    r
                 }
             } else {
                 Err(Error::VotacionNoExiste)
@@ -119,6 +116,11 @@ mod sistema_votacion {
                 año_inicio,
             );
             let fin = Fecha::new(0, minuto_fin, hora_fin, dia_fin, mes_fin, año_fin);
+
+            if inicio.get_tiempo_unix() > fin.get_tiempo_unix() {
+                return Err(Error::FechaInvalida);
+            }
+
             let id: u32 = self.elecciones.len() + 1;
             let eleccion = Eleccion::new(id, puesto, inicio, fin);
             self.elecciones.push(&eleccion);
@@ -182,28 +184,35 @@ mod sistema_votacion {
             }
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if let Some(u) = votacion.buscar_miembro(&id_miembro, &rol) {
-                    if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
-                        match rol {
-                            Rol::Candidato => Err(Error::CandidatoYaAprobado),
-                            Rol::Votante => Err(Error::VotanteYaAprobado),
+                return match votacion.consultar_estado(self.env().block_timestamp()) {
+                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
+                    EstadoDeEleccion::EnCurso => {
+                        if let Some(u) = votacion.buscar_miembro(&id_miembro, &rol) {
+                            if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
+                                match rol {
+                                    Rol::Candidato => Err(Error::CandidatoYaAprobado),
+                                    Rol::Votante => Err(Error::VotanteYaAprobado),
+                                }?
+                            } else if u.esta_rechazado() && estado == EstadoAprobacion::Rechazado {
+                                match rol {
+                                    Rol::Candidato => Err(Error::CandidatoYaRechazado),
+                                    Rol::Votante => Err(Error::VotanteYaRechazado),
+                                }?
+                            } else {
+                                u.cambiar_estado_aprobacion(estado);
+                                self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                                Ok(())
+                            }?
+                        } else {
+                            match rol {
+                                Rol::Candidato => Err(Error::CandidatoNoExistente),
+                                Rol::Votante => Err(Error::VotanteNoExistente),
+                            }?
                         }
-                    } else if u.esta_rechazado() && estado == EstadoAprobacion::Rechazado {
-                        match rol {
-                            Rol::Candidato => Err(Error::CandidatoYaRechazado),
-                            Rol::Votante => Err(Error::VotanteYaRechazado),
-                        }
-                    } else {
-                        u.cambiar_estado_aprobacion(estado);
-                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
                         Ok(())
                     }
-                } else {
-                    match rol {
-                        Rol::Candidato => Err(Error::CandidatoNoExistente),
-                        Rol::Votante => Err(Error::VotanteNoExistente),
-                    }
-                }
+                };
             } else {
                 Err(Error::VotacionNoExiste)
             }
@@ -222,7 +231,7 @@ mod sistema_votacion {
                 // retorna un id inválido, algo MUY MALO HA PASADO, y debería finalizar la
                 // ejecución.
                 Ok(eleccion
-                    .get_candidatos()
+                    .get_miembros(&Rol::Candidato)
                     .iter()
                     .map(|id| (*id, self.usuarios.get(id).unwrap()))
                     .collect())
@@ -235,14 +244,8 @@ mod sistema_votacion {
         /// Recibe el id de una votacion y retorna su estado actual.
         /// Devuelve un error si la votacion no existe.
         pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
-            let tiempo = self.env().block_timestamp();
             if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
-                if tiempo < eleccion.inicio.get_tiempo_unix() {
-                    return Ok(EstadoDeEleccion::Pendiente);
-                } else if tiempo < eleccion.fin.get_tiempo_unix() {
-                    return Ok(EstadoDeEleccion::EnCurso);
-                }
-                Ok(EstadoDeEleccion::Finalizada)
+                Ok(eleccion.consultar_estado(self.env().block_timestamp()))
             } else {
                 Err(Error::VotacionNoExiste)
             }
@@ -254,7 +257,11 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn votar(&self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
             if let Some(mut eleccion) = self.elecciones.get(id_votacion) {
-                eleccion.votar(self.env().caller(), id_candidato)
+                eleccion.votar(
+                    self.env().caller(),
+                    id_candidato,
+                    self.env().block_timestamp(),
+                )
             } else {
                 Err(Error::VotacionNoExiste)
             }
@@ -265,24 +272,55 @@ mod sistema_votacion {
         fn es_admin(&self) -> bool {
             self.env().caller() == self.admin
         }
+
+        // devuelve los votantes registrados y aprobados en una elección de id `id_eleccion`
+        #[ink(message)]
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                Ok(eleccion
+                    .get_miembros(&Rol::Votante)
+                    .iter()
+                    .map(|id| {
+                        let u = self.usuarios.get(id).unwrap();
+                        ReporteVotantes::new(id.to_owned(), u.nombre, u.apellido)
+                    })
+                    .collect())
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
+        // Devuelve la cantidad de votantes que votaron y la cantidad de votantes
+        #[ink(message)]
+        pub fn reporte_participacion(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<ReporteParticipacion, Error> {
+            if let Some(votacion) = self.elecciones.get(id_eleccion - 1) {
+                Ok(ReporteParticipacion::new(
+                    votacion.cuantos_votaron() as u64,
+                    votacion.votantes.len() as u64,
+                ))
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+    }
+
+    impl Default for SistemaVotacion {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     #[cfg(test)]
     mod tests {
-
-
-        use ink::env::hash::{Blake2x256, CryptoHash};
-
         use super::*;
 
         #[ink::test]
-        fn probar() {
-            let dato = b"probando";
-            let mut output = [0u8; 32];
-            Blake2x256::hash(dato, &mut output);
-            let hash = Hash::from(output);
-            let contrato = SistemaVotacion::new(hash);  
-
+        fn probar_contrato() {
+            let mut contrato = SistemaVotacion::new();
+            assert!(contrato.registrar_usuario("Jonh".to_string(), "Doe".to_string()).is_ok());
         }
     }
 }

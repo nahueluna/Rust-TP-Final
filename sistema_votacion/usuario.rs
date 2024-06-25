@@ -7,13 +7,13 @@ use ink::prelude::string::String;
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
 pub struct Usuario {
-    nombre: String,
-    apellido: String,
+    pub nombre: String,
+    pub apellido: String,
 }
 
 impl Usuario {
     // Creacion de usuario (votante o candidato)
-    pub(crate) fn new(nombre: String, apellido: String) -> Self {
+    pub fn new(nombre: String, apellido: String) -> Self {
         Self { nombre, apellido }
     }
 }

@@ -72,4 +72,29 @@ impl Fecha {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tiempo_unix() {
+        // ink! representa el tiempo epoch en milissegundos
+      
+        // 1/1/1970 00:00:00; epoch 0
+        let fecha1 = Fecha::new(0, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha1.get_tiempo_unix(), 0);
+
+        // 1/1/1970 00:00:30; epoch 30seg = 30_000ms
+        let fecha2 = Fecha::new(30, 0, 0, 1, 1, 1970);
+        assert_eq!(fecha2.get_tiempo_unix(), 30_000);
+ 
+        // 1/1/1970 00:01:00; epoch 60seg = 60_000ms
+        let fecha3 = Fecha::new(0, 1, 0, 1, 1, 1970);
+        assert_eq!(fecha3.get_tiempo_unix(), 60_000);
+        
+        // 31/02/2000 00:00:00; epoch 951955200seg
+        let fecha4 = Fecha::new(0, 0, 0, 31, 2, 2000);
+        assert_eq!(fecha4.get_tiempo_unix(), 951_955_200_000);
+        
+        // 01/06/2024 10:10:10; epoch 1717236610seg
+        let fecha5 = Fecha::new(10, 10, 10, 1, 6, 2024);
+        assert_eq!(fecha5.get_tiempo_unix(), 1_717_236_610_000);
+    }
 }

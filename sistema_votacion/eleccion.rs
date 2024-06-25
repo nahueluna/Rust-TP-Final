@@ -15,12 +15,11 @@ use ink::primitives::AccountId;
 #[derive(Debug)]
 pub(crate) struct Eleccion {
     pub(crate) id: u32,
-    votantes: Vec<Votante>,
+    pub(crate) votantes: Vec<Votante>,
     candidatos: Vec<Candidato>,
     puesto: String,
     pub inicio: Fecha,
     pub fin: Fecha,
-    estado: EstadoDeEleccion,
 }
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
@@ -47,17 +46,38 @@ impl Eleccion {
             puesto,
             inicio,
             fin,
-            estado: EstadoDeEleccion::Pendiente,
         }
     }
 
-    pub(crate) fn añadir_miembro(&mut self, id: AccountId, rol: Rol) {
-        match rol {
-            Rol::Candidato => {
-                self.candidatos.push(Candidato::new(id));
-            }
-            Rol::Votante => {
-                self.votantes.push(Votante::new(id));
+    pub fn consultar_estado(&self, tiempo: u64) -> EstadoDeEleccion {
+        if tiempo < self.inicio.get_tiempo_unix() {
+            EstadoDeEleccion::Pendiente
+        } else if tiempo < self.fin.get_tiempo_unix() {
+            EstadoDeEleccion::EnCurso
+        } else {
+            EstadoDeEleccion::Finalizada
+        }
+    }
+
+    pub(crate) fn añadir_miembro(
+        &mut self,
+        id: AccountId,
+        rol: Rol,
+        tiempo: u64,
+    ) -> Result<(), Error> {
+        match self.consultar_estado(tiempo) {
+            EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+            EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
+            EstadoDeEleccion::EnCurso => {
+                match rol {
+                    Rol::Candidato => {
+                        self.candidatos.push(Candidato::new(id));
+                    }
+                    Rol::Votante => {
+                        self.votantes.push(Votante::new(id));
+                    }
+                }
+                Ok(())
             }
         }
     }
@@ -124,34 +144,100 @@ impl Eleccion {
         no_verificados
     }
 
-    /// Retorna una lista de candidatos aprobados. Si no los hay retorna la lista vacía.
-    pub fn get_candidatos(&self) -> Vec<AccountId> {
-        self.candidatos
-            .iter()
-            .filter(|c| c.esta_aprobado())
-            .map(|c| c.id)
-            .collect()
+    /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
+    pub fn get_miembros(&self, rol: &Rol) -> Vec<AccountId> {
+        match rol {
+            Rol::Candidato => self
+                .candidatos
+                .iter()
+                .filter(|c| c.esta_aprobado())
+                .map(|c| c.id)
+                .collect(),
+            Rol::Votante => self
+                .votantes
+                .iter()
+                .filter(|c| c.esta_aprobado())
+                .map(|c| c.id)
+                .collect(),
+        }
+    }
+
+    pub fn cuantos_votaron(&self) -> usize {
+        self.votantes.iter().filter(|v| v.ha_votado).count()
     }
 
     // Permite que el votante `id_votante` vote al candidato `id_cantidato`
     // Una vez que esto ocurre, el votante no puede volver a votar
-    pub fn votar(&mut self, id_votante: AccountId, id_candidato: AccountId) -> Result<(), Error> {
-        // El código está raro con el fin no romper las reglas de ownership
-        if self.estado != EstadoDeEleccion::EnCurso {
-            Err(Error::VotacionFueraDeTermino)
-        } else if self
-            .buscar_miembro(&id_candidato, &Rol::Candidato)
-            .is_none()
-        {
-            Err(Error::CandidatoNoExistente)
-        } else if let Some(votante) = self.buscar_miembro(&id_votante, &Rol::Votante) {
-            votante.votar().map(|()| {
-                self.buscar_miembro(&id_candidato, &Rol::Votante)
-                    .unwrap()
-                    .votar()
-            })?
-        } else {
-            Err(Error::VotanteNoExistente)
-        }
+    pub fn votar(
+        &mut self,
+        id_votante: AccountId,
+        id_candidato: AccountId,
+        tiempo: u64,
+    ) -> Result<(), Error> {
+        return match self.consultar_estado(tiempo) {
+            EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+            EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
+            EstadoDeEleccion::EnCurso => {
+                // El código está raro con el fin no romper las reglas de ownership
+                if self
+                    .buscar_miembro(&id_candidato, &Rol::Candidato)
+                    .is_none()
+                {
+                    Err(Error::CandidatoNoExistente)
+                } else if let Some(votante) = self.buscar_miembro(&id_votante, &Rol::Votante) {
+                    votante.votar().map(|()| {
+                        self.buscar_miembro(&id_candidato, &Rol::Votante)
+                            .unwrap()
+                            .votar()
+                    })?
+                } else {
+                    Err(Error::VotanteNoExistente)
+                }
+            }
+        };
+    }
+}
+
+mod tests {
+    use super::*;
+    use crate::fecha::Fecha;
+
+    #[test]
+    fn test_estado_eleccion() {
+        let id = 1;
+        let puesto = "Presidente".to_string();
+        let fecha_inicio = Fecha::new(0, 0, 0, 20, 5, 2024); // 20/05/2024 00:00:00
+        let fecha_fin = Fecha::new(0, 0, 0, 21, 5, 2024); // 21/05/2024 00:00:00
+
+        let eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
+
+        assert_eq!(
+            eleccion.consultar_estado(1716138000000),  // 19/5/2024 17:00:00
+            EstadoDeEleccion::Pendiente
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716163199000),  // 19/5/2024 23:59:59
+            EstadoDeEleccion::Pendiente
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716163200000),  // 20/5/2024 00:00:00
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716224400000), // 20/5/2024 17:00:00
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716249599000), // 20/5/2024 23:59:59
+            EstadoDeEleccion::EnCurso
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716249600000), // 21/5/2024 00:00:00
+            EstadoDeEleccion::Finalizada
+        );
+        assert_eq!(
+            eleccion.consultar_estado(1716310800000), // 21/5/2024 17:00:00
+            EstadoDeEleccion::Finalizada
+        );
     }
 }

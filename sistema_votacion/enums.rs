@@ -30,8 +30,9 @@ pub enum Error {
     CandidatoYaRechazado,   // Intentar rechazar un candidato que ya fue rechazado
     VotacionNoExiste,       // Intentar registrar un votante en una eleccion que no existe.
     VotacionNoIniciada,     // Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
+    VotacionFinalizada,     // La votación finalizó, no es posible operar
     VotanteYaVoto,          // El votante ya votó, no puede hacerlo dos veces
-    VotacionFueraDeTermino  // Se intenta votar fuera del plazo 
+    FechaInvalida           // Se intenta crear una elección donde la fecha fin > inicio
 }
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
