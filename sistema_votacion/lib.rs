@@ -23,7 +23,7 @@ mod sistema_votacion {
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
-    /// una coleccion de elecciones y la totalidad de usuarios del sistema (solo su info personal)
+    /// una coleccion de elecciones y la información personal de todos los usuarios del sistema
     #[ink(storage)]
     pub struct SistemaVotacion {
         admin: AccountId,
@@ -33,7 +33,7 @@ mod sistema_votacion {
 
     impl SistemaVotacion {
         /// Creacion del sistema, 
-        /// toma como admin el AccountId de quien crea la instancia del contrato.
+        /// toma como admin el `AccountId` de quien crea la instancia del contrato.
         #[ink(constructor)]
         pub fn new() -> Self {
             let admin = Self::env().caller();
@@ -49,7 +49,7 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn registrar_usuario(&mut self, nombre: String, apellido: String) -> Result<(), Error> {
             let id = self.env().caller();
-            if self.usuarios.get(id).is_some() {
+            if self.usuarios.contains(id) {
                 return Err(Error::UsuarioExistente);
             }
             let usuario = Usuario::new(nombre, apellido);
@@ -90,7 +90,7 @@ mod sistema_votacion {
         }
 
         /// Permite al administrador crear una eleccion con los datos correspondientes.
-        /// Retorna Error::PermisosInsuficientes si un usuario intenta acceder.
+        /// Retorna `Error::PermisosInsuficientes` si un usuario intenta acceder.
         #[ink(message)]
         pub fn crear_eleccion(
             &mut self,
@@ -141,10 +141,11 @@ mod sistema_votacion {
         }
 
         /// Retorna un `Vec<AccountId` de votantes o candidatos, según se corresponda a `rol`, para una elección de id `id_elección`.
+        /// 
         /// Solo contendrá **usuarios registrados** que no han sido verificados por el administrador para esa
         /// elección. Éste método no verifica que el usuario exista en el sistema,
         /// esto ocurre cuando el usuario se registra como votante o candidato.
-        /// Si el invocante no es administrador retorna un Error:PermisosInsuficientes
+        /// Si el invocante no es administrador retorna `Error:PermisosInsuficientes`
         #[ink(message)]
         pub fn get_no_verificados(
             &self,
@@ -197,7 +198,7 @@ mod sistema_votacion {
             }
         }
 
-        /// Retorna los candidatos aprobados en la elección de id `id_votacion`
+        /// Retorna los candidatos aprobados en la elección de id `id_votacion`.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
         #[ink(message)]
@@ -220,7 +221,7 @@ mod sistema_votacion {
         }
 
         /// Recibe el id de una votacion y retorna su estado actual.
-        /// Devuelve un error si la votacion no existe.
+        /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
         #[ink(message)]
         pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
             if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
@@ -255,9 +256,9 @@ mod sistema_votacion {
         /// Retorna `Result<T, E>` con vector de ids e informacion del usuario o `Error` en caso de que la votacion
         /// no exista
         /// 
-        /// # Panic
+        /// # Panics
         /// 
-        /// El método produce panic si un votante de la elección 
+        /// Produce panic si un votante de la elección 
         /// no se encuentra registrado en el sistema
         #[ink(message)]
         pub fn get_info_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<(AccountId, Usuario)>, Error> {

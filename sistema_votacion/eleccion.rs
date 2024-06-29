@@ -5,11 +5,12 @@ use ink::prelude::{string::String, vec::Vec};
 use ink::primitives::AccountId;
 
 
-///* Eleccion: identificador, fechas de inicio y cierre.
-/// 
-///* Votantes con su id propio y si votaron o no.
-/// 
-///* Candidatos con id propio y cantidad de votos recibidos.
+/// Eleccion: 
+/// * Identificador 
+/// * Fechas de inicio y cierre de votación
+/// * Vector de `Votante` aprobado y pendiente
+/// * Vector de `Candidato` aprobado y pendiente
+/// * Puesto por el que se vota en la elección
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
@@ -24,6 +25,7 @@ pub(crate) struct Eleccion {
     pub fin: Fecha,
 }
 
+/// Roles posibles de un usuario que se registra en el sistema
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 pub enum Rol {
     Candidato,
@@ -52,9 +54,9 @@ impl Eleccion {
 
     /// Verifica estado de la eleccion
     /// 
-    ///* `EstadoDeEleccion::Pendiente` si aún no ha iniciado
-    ///* `EstadoDeEleccion::EnCurso` si se encuentra abierta
-    ///* `EstadoDeEleccion::Finalizada` si ha terminado
+    /// * `EstadoDeEleccion::Pendiente` si aún no ha iniciado
+    /// * `EstadoDeEleccion::EnCurso` si se encuentra abierta
+    /// * `EstadoDeEleccion::Finalizada` si ha terminado
     pub fn consultar_estado(&self, tiempo: u64) -> EstadoDeEleccion {
         if tiempo < self.inicio.get_tiempo_unix() {
             EstadoDeEleccion::Pendiente
@@ -99,9 +101,10 @@ impl Eleccion {
         }
     }
 
-    /// Busca un votante o un candidato aprobado con un AccountId determinado
+    /// Busca un votante o un candidato aprobado con un `AccountId` determinado.
+    /// 
     /// Retorna `Some(&mut Votante)` o `Some(&mut Candidato)`, respectivamente,
-    /// si lo halla, sino devuelve `None`.
+    /// si lo halla. Sino devuelve `None`.
     pub fn buscar_miembro_aprobado(&mut self, id: &AccountId, rol: &Rol) -> Option<&mut dyn Miembro> {
         match rol {
             Rol::Candidato => {
@@ -192,11 +195,6 @@ impl Eleccion {
             Rol::Candidato => self.candidatos_aprobados.iter().map(|c| c.id).collect(),
             Rol::Votante => self.votantes_aprobados.iter().map(|v| v.id).collect(),
         }
-    }
-
-    /// Retorna la cantidad de votantes que efectivamente han votado
-    pub fn get_cuantos_votaron(&self) -> usize {
-        self.votantes_aprobados.iter().filter(|v| v.ha_votado).count()
     }
 
     /// Permite que el votante `id_votante` vote al candidato `id_cantidato`.

@@ -7,7 +7,7 @@ use crate::enums::Error;
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
 /// Representa un votante en una eleccion determinada.
-/// Almacena su AccountId, estado de aprobacion y si voto o no.
+/// Almacena su `AccountId` y si voto o no.
 pub struct Votante {
     pub(crate) id: AccountId,
     pub(crate) ha_votado: bool,
@@ -28,8 +28,8 @@ impl Miembro for Votante {
 }
 
 impl Votante {
-    /// Construye un nuevo votante con el AccountId.
-    /// Ademas tiene estado de aprobacion pendiente y no ha votado.
+    /// Construye un nuevo votante con el `AccountId`.
+    /// Inicializa con `ha_votado` en `false`
     pub fn new(id: AccountId) -> Self {
         Self {
             id,
