@@ -154,7 +154,7 @@ mod sistema_votacion {
             }
 
             if let Some(votacion) = self.elecciones.get(id_elección - 1) {
-                Ok(votacion.get_no_verificados(rol))
+                Ok(votacion.get_no_verificados(&rol))
             } else {
                 Err(Error::VotacionNoExiste)
             }
@@ -164,10 +164,6 @@ mod sistema_votacion {
         ///
         /// # Retorno
         /// * `Error::PermisosInsuficientes` si un Usuario distinto del administrador intenta acceder.
-        /// * `Error::CandidatoYaAprobado` si el Candidato ya fue aprobado.
-        /// * `Error::VotanteYaAprobado` si el Votante ya fue aprobado.
-        /// * `Error::CandidatoYaRechazado` si el Candidato ya fue rechazado.
-        /// * `Error::VotanteYaRechazado` si el Votante ya fue rechazado.
         /// * `Error::CandidatoNoExistente` si el Candidato no existe.
         /// * `Error::VotanteNoExistente` si el Votante no existe.
         /// * `Error::VotacionNoExiste` si la Eleccion no existe.
@@ -188,29 +184,10 @@ mod sistema_votacion {
                     EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
                     EstadoDeEleccion::EnCurso => {
-                        if let Some(u) = votacion.buscar_miembro(&id_miembro, &rol) {
-                            if u.esta_aprobado() && estado == EstadoAprobacion::Aprobado {
-                                match rol {
-                                    Rol::Candidato => Err(Error::CandidatoYaAprobado),
-                                    Rol::Votante => Err(Error::VotanteYaAprobado),
-                                }?
-                            } else if u.esta_rechazado() && estado == EstadoAprobacion::Rechazado {
-                                match rol {
-                                    Rol::Candidato => Err(Error::CandidatoYaRechazado),
-                                    Rol::Votante => Err(Error::VotanteYaRechazado),
-                                }?
-                            } else {
-                                u.cambiar_estado_aprobacion(estado);
-                                self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
-                                Ok(())
-                            }?
-                        } else {
-                            match rol {
-                                Rol::Candidato => Err(Error::CandidatoNoExistente),
-                                Rol::Votante => Err(Error::VotanteNoExistente),
-                            }?
+                        match estado {
+                            EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
+                            EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
                         }
-                        Ok(())
                     }
                 };
             } else {
@@ -251,9 +228,9 @@ mod sistema_votacion {
             }
         }
 
-        // Le permite a un registrado en el sistema votar por un candidato
-        // `id_candidato` en una elección `id_votacion`, solo si el usuario
-        // invocante está aprobado en la misma.
+        /// Le permite a un registrado en el sistema votar por un candidato
+        /// `id_candidato` en una elección `id_votacion`, solo si el usuario
+        /// invocante está aprobado en la misma.
         #[ink(message)]
         pub fn votar(&self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
             if let Some(mut eleccion) = self.elecciones.get(id_votacion) {
@@ -298,8 +275,8 @@ mod sistema_votacion {
         ) -> Result<ReporteParticipacion, Error> {
             if let Some(votacion) = self.elecciones.get(id_eleccion - 1) {
                 Ok(ReporteParticipacion::new(
-                    votacion.cuantos_votaron() as u64,
-                    votacion.votantes.len() as u64,
+                    votacion.get_cuantos_votaron() as u64,
+                    votacion.votantes_aprobados.len() as u64,
                 ))
             } else {
                 Err(Error::VotacionNoExiste)
