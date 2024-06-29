@@ -49,12 +49,20 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn registrar_usuario(&mut self, nombre: String, apellido: String) -> Result<(), Error> {
             let id = self.env().caller();
-            if self.usuarios.contains(id) {
-                return Err(Error::UsuarioExistente);
+            
+            match self.es_admin() {
+                true => Err(Error::UsuarioNoPermitido),
+                false => {
+                    if self.usuarios.contains(id) {
+                        Err(Error::UsuarioExistente)
+                    }
+                    else {
+                        let usuario = Usuario::new(nombre, apellido);
+                        self.usuarios.insert(id, &usuario);
+                        Ok(())
+                    }
+                }
             }
-            let usuario = Usuario::new(nombre, apellido);
-            self.usuarios.insert(id, &usuario);
-            Ok(())
         }
 
         /// Registra un votante o un candidato en una votacion determinada.
@@ -67,7 +75,7 @@ mod sistema_votacion {
         pub fn registrar_en_eleccion(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
             let id = self.env().caller();
 
-            if self.usuarios.get(id).is_none() {
+            if !self.usuarios.contains(id) {
                 return Err(Error::UsuarioNoExistente);
             }
 
