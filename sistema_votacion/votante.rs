@@ -1,7 +1,7 @@
 use ink::primitives::AccountId;
 
 use crate::eleccion::Miembro;
-use crate::enums::{Error, EstadoAprobacion};
+use crate::enums::Error;
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
@@ -10,27 +10,11 @@ use crate::enums::{Error, EstadoAprobacion};
 /// Almacena su AccountId, estado de aprobacion y si voto o no.
 pub struct Votante {
     pub(crate) id: AccountId,
-    pub(crate) aprobacion: EstadoAprobacion,
     pub(crate) ha_votado: bool,
 }
 
 //#[ink::trait_definition]
 impl Miembro for Votante {
-    /// Retorna `true` si el votante está aprobado, sino `false`
-    fn esta_aprobado(&self) -> bool {
-        matches!(self.aprobacion, EstadoAprobacion::Aprobado)
-    }
-
-    /// Retorna `true` si el votante está rechazado, sino `false`
-    fn esta_rechazado(&self) -> bool {
-        matches!(self.aprobacion, EstadoAprobacion::Rechazado)
-    }
-
-    /// Retorna `true` si el votante está en estado pendiente, sino `false`
-    fn esta_pendiente(&self) -> bool {
-        matches!(self.aprobacion, EstadoAprobacion::Pendiente)
-    }
-
     /// Si el votante no `ha_votado`, se invierte el booleano `ha_votado`.
     /// Si el votante `ha_votado` se devuelve un `Error::VotanteYaVoto`
     fn votar(&mut self) -> Result<(), Error> {
@@ -41,14 +25,6 @@ impl Miembro for Votante {
             Ok(())
         }
     }
-
-    /// Modifica el estado de aprobacion si el recibido es distinto de `Pendiente`
-    fn cambiar_estado_aprobacion(&mut self, estado: EstadoAprobacion) {
-        match estado {
-            EstadoAprobacion::Pendiente => (),
-            _ => self.aprobacion = estado,
-        }
-    }
 }
 
 impl Votante {
@@ -57,7 +33,6 @@ impl Votante {
     pub fn new(id: AccountId) -> Self {
         Self {
             id,
-            aprobacion: EstadoAprobacion::Pendiente,
             ha_votado: false,
         }
     }
@@ -71,15 +46,11 @@ mod tests {
     fn probar_creacion() {
         let votante_id: [u8; 32] = [0; 32];
         let votante = Votante::new(AccountId::from(votante_id));
-        assert!(!votante.esta_aprobado());
-        assert!(!votante.esta_rechazado());
-        assert!(votante.esta_pendiente());
+        assert!(!votante.ha_votado);
 
         let votante_id: [u8; 32] = [255; 32];
         let votante = Votante::new(AccountId::from(votante_id));
-        assert!(!votante.esta_aprobado());
-        assert!(!votante.esta_rechazado());
-        assert!(votante.esta_pendiente());
+        assert!(!votante.ha_votado);
     }
 
     #[test]
@@ -89,27 +60,5 @@ mod tests {
         assert!(votante.votar().is_ok());
         assert!(votante.ha_votado);
         assert!(votante.votar().is_err());
-    }
-
-    #[test]
-    fn probar_estado() {
-        let votante_id: [u8; 32] = [0; 32];
-        let mut votante = Votante::new(AccountId::from(votante_id));
-
-        votante.cambiar_estado_aprobacion(EstadoAprobacion::Aprobado);
-        assert!(votante.esta_aprobado());
-        assert!(!votante.esta_rechazado());
-        assert!(!votante.esta_pendiente());
-
-        votante.cambiar_estado_aprobacion(EstadoAprobacion::Rechazado);
-        assert!(!votante.esta_aprobado());
-        assert!(votante.esta_rechazado());
-        assert!(!votante.esta_pendiente());
-
-        // no cambia el estado si recibe pendiente
-        votante.cambiar_estado_aprobacion(EstadoAprobacion::Pendiente);
-        assert!(!votante.esta_aprobado());
-        assert!(votante.esta_rechazado());
-        assert!(!votante.esta_pendiente());
     }
 }
