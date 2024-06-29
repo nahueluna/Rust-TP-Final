@@ -214,20 +214,24 @@ mod sistema_votacion {
         /// Retorna los candidatos aprobados en la elección de id `id_votacion`.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
+        /// # Panics
+        /// Produce panic si el candidato obtenido de la elección 
+        /// no está registrado en el sistema
         #[ink(message)]
         pub fn get_candidatos(
             &mut self,
             id_votacion: u32,
         ) -> Result<Vec<(AccountId, Usuario)>, Error> {
             if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
-                // Utiliza `unwrap()` ya que si el método `get_candidatos` de una elección
-                // retorna un id inválido, algo MUY MALO HA PASADO, y debería finalizar la
-                // ejecución.
-                Ok(eleccion
-                    .get_miembros(&Rol::Candidato)
-                    .iter()
-                    .map(|id| (*id, self.usuarios.get(id).unwrap()))
-                    .collect())
+                let candidatos = eleccion.candidatos_aprobados.iter().map(|c| {
+                    let Some(u) = self.usuarios.get(c.id) else {
+                        panic!("{}", Error::CandidatoNoExistente);
+                    };
+                    
+                    (c.id, u)
+                }).collect();
+                
+                Ok(candidatos)
             } else {
                 Err(Error::VotacionNoExiste)
             }
