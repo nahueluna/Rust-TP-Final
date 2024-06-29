@@ -20,6 +20,7 @@ pub enum Error {
     PermisosInsuficientes,  // Intentar acceder a un metodo del administrador sin serlo.
     UsuarioExistente,       // Intentar registrar un usuario que ya existe.
     UsuarioNoExistente,     // Intentar registrar como votante/candidato a un usuario que no existe.
+    UsuarioNoPermitido,     // Intentar registrar administrador como usuario del sistema (futuro candidato o miembro)
     VotanteExistente,       // Intentar registrar un votante que ya existe.
     CandidatoExistente,     // Intentar registrar un candidato que ya existe.
     VotanteNoExistente,     // Intentar aprobar un votante que no existe.
@@ -37,6 +38,7 @@ impl Display for Error {
             Error::PermisosInsuficientes => write!(f, "El usuario no posee los permisos de administracion requeridos"),
             Error::UsuarioExistente => write!(f, "El usuario ya se encuentra registrado en el sistema"),
             Error::UsuarioNoExistente => write!(f, "El usuario no se encuentra registrado en el sistema"),
+            Error::UsuarioNoPermitido => write!(f, "El usuario que intenta registrar es el administrador del sistema"),
             Error::VotanteExistente => write!(f, "El votante ya se encuentra registrado"),
             Error::CandidatoExistente => write!(f, "El candidato ya se encuentra registrado"),
             Error::VotanteNoExistente => write!(f, "El votante solicitado no se encuentra registrado"),
