@@ -17,9 +17,9 @@ mod sistema_votacion {
     use crate::eleccion::Rol;
     use crate::enums::*;
     use crate::fecha::Fecha;
-    use crate::reportes::*;
+    use crate::votante::*;
     use crate::usuario::Usuario;
-    use ink::prelude::{borrow::ToOwned, string::String, vec::Vec};
+    use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
@@ -32,7 +32,8 @@ mod sistema_votacion {
     }
 
     impl SistemaVotacion {
-        // Creacion del sistema, toma como admin el AccountId de quien crea la instancia del contrato.
+        /// Creacion del sistema, 
+        /// toma como admin el AccountId de quien crea la instancia del contrato.
         #[ink(constructor)]
         pub fn new() -> Self {
             let admin = Self::env().caller();
@@ -43,9 +44,9 @@ mod sistema_votacion {
             }
         }
 
-        #[ink(message)]
         /// Registra un usuario en el sistema de votacion.
-        /// Retorna Error::UsuarioExistente si el usuario ya existe.
+        /// Retorna `Error::UsuarioExistente` si el usuario ya existe.
+        #[ink(message)]
         pub fn registrar_usuario(&mut self, nombre: String, apellido: String) -> Result<(), Error> {
             let id = self.env().caller();
             if self.usuarios.get(id).is_some() {
@@ -56,12 +57,13 @@ mod sistema_votacion {
             Ok(())
         }
 
-        #[ink(message)]
         /// Registra un votante o un candidato en una votacion determinada.
+        /// 
         /// Retorna `Error::UsuarioNoExistente` si el usuario no esta registrado.
         /// Retorna `Error::VotanteExistente` si el votante ya existe.
         /// Retorna `Error::CandidatoExistente` si el candidato ya existe.
         /// Retorna `Error::VotacionNoExiste` si la votacion no existe.
+        #[ink(message)]
         pub fn registrar_en_eleccion(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
             let id = self.env().caller();
 
@@ -217,9 +219,9 @@ mod sistema_votacion {
             }
         }
 
-        #[ink(message)]
         /// Recibe el id de una votacion y retorna su estado actual.
         /// Devuelve un error si la votacion no existe.
+        #[ink(message)]
         pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
             if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
                 Ok(eleccion.consultar_estado(self.env().block_timestamp()))
@@ -250,34 +252,36 @@ mod sistema_votacion {
             self.env().caller() == self.admin
         }
 
-        // devuelve los votantes registrados y aprobados en una elección de id `id_eleccion`
+        /// Retorna `Result<T, E>` con vector de ids e informacion del usuario o `Error` en caso de que la votacion
+        /// no exista
+        /// 
+        /// # Panic
+        /// 
+        /// El método produce panic si un votante de la elección 
+        /// no se encuentra registrado en el sistema
         #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<ReporteVotantes>, Error> {
+        pub fn get_info_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<(AccountId, Usuario)>, Error> {
             if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
-                Ok(eleccion
-                    .get_miembros(&Rol::Votante)
-                    .iter()
-                    .map(|id| {
-                        let u = self.usuarios.get(id).unwrap();
-                        ReporteVotantes::new(id.to_owned(), u.nombre, u.apellido)
-                    })
-                    .collect())
+                let votantes = eleccion.votantes_aprobados.iter().map(|v| {
+                    let Some(u) = self.usuarios.get(v.id) else {
+                        panic!("Error: {}", Error::UsuarioNoExistente);
+                    };
+                    
+                    (v.id.clone(), u.clone())
+                }).collect();
+
+                Ok(votantes)
             } else {
                 Err(Error::VotacionNoExiste)
             }
         }
 
-        // Devuelve la cantidad de votantes que votaron y la cantidad de votantes
+        /// Retorna `Result<T, E>` con vector de `Votante` o `Error` en caso
+        /// de que la votacion no exista
         #[ink(message)]
-        pub fn reporte_participacion(
-            &self,
-            id_eleccion: u32,
-        ) -> Result<ReporteParticipacion, Error> {
-            if let Some(votacion) = self.elecciones.get(id_eleccion - 1) {
-                Ok(ReporteParticipacion::new(
-                    votacion.get_cuantos_votaron() as u64,
-                    votacion.votantes_aprobados.len() as u64,
-                ))
+        pub fn get_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<Votante>, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                Ok(eleccion.votantes_aprobados)
             } else {
                 Err(Error::VotacionNoExiste)
             }
