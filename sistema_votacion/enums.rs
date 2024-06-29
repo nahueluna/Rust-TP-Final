@@ -5,9 +5,8 @@ use core::fmt::Display;
 #[derive(Debug, PartialEq)]
 /// Representa el estado de aprobacion de un usuario.
 ///
-/// Los usuarios registrados como votantes o candidatos,
-/// inician en estado de aprobacion pendiente para una eleccion determinada.
-/// Luego el administrador puede aprobarlos o rechazarlos.
+/// Utilizado para decidir el estado de aprobación de un usuario
+/// en el proceso de cambio de estado
 pub enum EstadoAprobacion {
     Aprobado,
     Rechazado,
