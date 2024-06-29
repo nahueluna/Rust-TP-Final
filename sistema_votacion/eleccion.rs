@@ -18,8 +18,8 @@ pub(crate) struct Eleccion {
     pub(crate) id: u32,
     pub(crate) votantes_pendientes: Vec<Votante>,
     pub(crate) votantes_aprobados: Vec<Votante>,
-    candidatos_pendientes: Vec<Candidato>,
-    candidatos_aprobados: Vec<Candidato>,
+    pub(crate) candidatos_pendientes: Vec<Candidato>,
+    pub(crate) candidatos_aprobados: Vec<Candidato>,
     puesto: String,
     pub inicio: Fecha,
     pub fin: Fecha,
@@ -189,6 +189,7 @@ impl Eleccion {
         }
     }
 
+    // No se usa, evaluar si conviene borrarla
     /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
     pub fn get_miembros(&self, rol: &Rol) -> Vec<AccountId> {
         match rol {
