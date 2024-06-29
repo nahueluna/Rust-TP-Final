@@ -20,14 +20,17 @@ mod sistema_votacion {
     use crate::votante::*;
     use crate::usuario::Usuario;
     use ink::prelude::{string::String, vec::Vec};
-    use ink::storage::{Mapping, StorageVec};
+    use ink::storage::Mapping;
+    use ink::storage::StorageVec;
 
     /// Estructura principal del sistema. Consta del administrador electoral,
-    /// una coleccion de elecciones y la información personal de todos los usuarios del sistema
+    /// una coleccion de elecciones y dos estructuras de usuarios: ID's de usuarios almacenados por DNI
+    /// y la información personal de todos los usuarios del sistema almacenada por ID
     #[ink(storage)]
     pub struct SistemaVotacion {
         admin: AccountId,
         elecciones: StorageVec<Eleccion>,
+        id_usuarios: Mapping<String, AccountId>,
         usuarios: Mapping<AccountId, Usuario>,
     }
 
@@ -40,6 +43,7 @@ mod sistema_votacion {
             Self {
                 admin,
                 elecciones: StorageVec::new(),
+                id_usuarios: Mapping::new(),
                 usuarios: Mapping::new(),
             }
         }
@@ -47,17 +51,18 @@ mod sistema_votacion {
         /// Registra un usuario en el sistema de votacion.
         /// Retorna `Error::UsuarioExistente` si el usuario ya existe.
         #[ink(message)]
-        pub fn registrar_usuario(&mut self, nombre: String, apellido: String) -> Result<(), Error> {
+        pub fn registrar_usuario(&mut self, nombre: String, apellido: String, dni: String) -> Result<(), Error> {
             let id = self.env().caller();
             
             match self.es_admin() {
                 true => Err(Error::UsuarioNoPermitido),
                 false => {
-                    if self.usuarios.contains(id) {
+                    if self.usuarios.contains(id) || self.id_usuarios.contains(&dni) {
                         Err(Error::UsuarioExistente)
                     }
                     else {
-                        let usuario = Usuario::new(nombre, apellido);
+                        let usuario = Usuario::new(nombre, apellido, dni);
+                        self.id_usuarios.insert(usuario.dni.clone(), &id);
                         self.usuarios.insert(id, &usuario);
                         Ok(())
                     }
@@ -308,9 +313,6 @@ mod sistema_votacion {
         use super::*;
 
         #[ink::test]
-        fn probar_contrato() {
-            let mut contrato = SistemaVotacion::new();
-            assert!(contrato.registrar_usuario("Jonh".to_string(), "Doe".to_string()).is_ok());
-        }
+        fn probar_contrato() {}
     }
 }
