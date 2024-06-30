@@ -329,7 +329,74 @@ mod sistema_votacion {
     mod tests {
         use super::*;
 
+        struct ContractEnv {
+            contract: SistemaVotacion,
+            contract_id: AccountId,
+            accounts: ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment>,
+        }
+
+        impl Default for ContractEnv {
+            fn default() -> Self {
+                Self {
+                    contract: SistemaVotacion::new(),
+                    contract_id: ink::env::account_id::<ink::env::DefaultEnvironment>(),
+                    accounts: ink::env::test::default_accounts::<ink::env::DefaultEnvironment>(),
+                }
+            }
+        }
+
         #[ink::test]
-        fn probar_contrato() {}
+        fn probar_registro_sistema() {
+            let mut env = ContractEnv::default();
+
+            // Bob como invocante del contrato
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+
+            // Registrar a bob en el sistema
+            assert!(env
+                .contract
+                .registrar_usuario(
+                    String::from("Bob"),
+                    String::from(""),
+                    String::from("11111111")
+                )
+                .is_ok());
+            // El mismo AccountId intenta registrarse de nuevo, no debe poder
+            assert_eq!(
+                env.contract
+                    .registrar_usuario(
+                        String::from("Alice"),
+                        String::from(""),
+                        String::from("22222222")
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::UsuarioExistente.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_registro_sistema_admin() {
+            let mut env = ContractEnv::default();
+
+            // Alice como invocante del contrato
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            // Alice es admin del sistema
+            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
+            // Registrar a Alice en el sistema no debe ser posible
+            assert_eq!(
+                env.contract
+                    .registrar_usuario(
+                        String::from("Alice"),
+                        String::from(""),
+                        String::from("22222222")
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::UsuarioNoPermitido.to_string()
+            );
+        }
     }
 }
