@@ -327,7 +327,11 @@ mod sistema_votacion {
 
     #[cfg(test)]
     mod tests {
+        use ink::env::test::set_caller;
+
         use super::*;
+
+        /* Helpers */
 
         struct ContractEnv {
             contract: SistemaVotacion,
@@ -345,12 +349,14 @@ mod sistema_votacion {
             }
         }
 
+        /* Tests */
+
         #[ink::test]
         fn probar_registro_sistema() {
             let mut env = ContractEnv::default();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
 
             // Bob como invocante del contrato
-            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
 
             // Registrar a bob en el sistema
@@ -394,9 +400,9 @@ mod sistema_votacion {
         #[ink::test]
         fn probar_registro_sistema_admin() {
             let mut env = ContractEnv::default();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
 
             // Alice como invocante del contrato
-            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             // Alice es admin del sistema
             assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
@@ -411,6 +417,74 @@ mod sistema_votacion {
                     .unwrap_err()
                     .to_string(),
                 Error::UsuarioNoPermitido.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_crear_eleccion() {
+            let mut env = ContractEnv::default();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Se crea una elección con exito
+            assert!(env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    0,
+                    1,
+                    1,
+                    1970,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1970,
+                )
+                .is_ok());
+
+            // La creación falla porque la fecha de finalización es posterior a la de inicio.
+            assert_eq!(
+                env.contract
+                    .crear_eleccion(
+                        String::from("Presidente"),
+                        1,
+                        1,
+                        1,
+                        1,
+                        1970,
+                        0,
+                        0,
+                        1,
+                        1,
+                        1970,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::FechaInvalida.to_string()
+            );
+
+            // Bob como invocante del contrato
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            // Bob no debe poder crear una elección, puesto que no es admin
+            assert_eq!(
+                env.contract
+                    .crear_eleccion(
+                        String::from("Presidente"),
+                        0,
+                        0,
+                        1,
+                        1,
+                        1970,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1970,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::PermisosInsuficientes.to_string()
             );
         }
     }
