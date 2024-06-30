@@ -439,7 +439,7 @@ mod sistema_votacion {
                     .registrar_usuario(
                         String::from("Eve"),
                         String::from(""),
-                        String::from("66666666")
+                        String::from("22222222")
                     )
                     .unwrap_err()
                     .to_string(),
