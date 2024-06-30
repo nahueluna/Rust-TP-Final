@@ -374,6 +374,21 @@ mod sistema_votacion {
                     .to_string(),
                 Error::UsuarioExistente.to_string()
             );
+
+            // Eve como invocante del contrato
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            // El mismo dni intenta registrase de nuevo, no debe poder
+            assert_eq!(
+                env.contract
+                    .registrar_usuario(
+                        String::from("Eve"),
+                        String::from(""),
+                        String::from("11111111")
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::UsuarioExistente.to_string()
+            );
         }
 
         #[ink::test]
