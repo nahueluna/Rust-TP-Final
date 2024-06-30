@@ -13,6 +13,10 @@ pub struct Usuario {
 impl Usuario {
     /// Creacion de un usuario con su información personal
     pub fn new(nombre: String, apellido: String, dni: String) -> Self {
-        Self { nombre, apellido, dni }
+        Self {
+            nombre,
+            apellido,
+            dni,
+        }
     }
 }

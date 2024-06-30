@@ -20,7 +20,12 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn test(&self, nombre: String, apellido: String, dni: String) -> Result<Usuario, Error> {
+        pub fn test(
+            &self,
+            nombre: String,
+            apellido: String,
+            dni: String,
+        ) -> Result<Usuario, Error> {
             if nombre == *"error" {
                 Err(Error::VotacionNoExiste)
             } else {

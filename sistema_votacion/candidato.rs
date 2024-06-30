@@ -24,9 +24,6 @@ impl Candidato {
     /// Construye un nuevo candidato con el `AccountId` dado.
     /// Inicializa con cero votos recibidos.
     pub fn new(id: AccountId) -> Self {
-        Self {
-            id,
-            votos: 0,
-        }
+        Self { id, votos: 0 }
     }
 }

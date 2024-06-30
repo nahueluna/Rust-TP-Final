@@ -4,9 +4,8 @@ use crate::{candidato::Candidato, fecha::Fecha};
 use ink::prelude::{string::String, vec::Vec};
 use ink::primitives::AccountId;
 
-
-/// Eleccion: 
-/// * Identificador 
+/// Eleccion:
+/// * Identificador
 /// * Fechas de inicio y cierre de votación
 /// * Vector de `Votante` aprobado y pendiente
 /// * Vector de `Candidato` aprobado y pendiente
@@ -53,7 +52,7 @@ impl Eleccion {
     }
 
     /// Verifica estado de la eleccion
-    /// 
+    ///
     /// * `EstadoDeEleccion::Pendiente` si aún no ha iniciado
     /// * `EstadoDeEleccion::EnCurso` si se encuentra abierta
     /// * `EstadoDeEleccion::Finalizada` si ha terminado
@@ -102,10 +101,14 @@ impl Eleccion {
     }
 
     /// Busca un votante o un candidato aprobado con un `AccountId` determinado.
-    /// 
+    ///
     /// Retorna `Some(&mut Votante)` o `Some(&mut Candidato)`, respectivamente,
     /// si lo halla. Sino devuelve `None`.
-    pub fn buscar_miembro_aprobado(&mut self, id: &AccountId, rol: &Rol) -> Option<&mut dyn Miembro> {
+    pub fn buscar_miembro_aprobado(
+        &mut self,
+        id: &AccountId,
+        rol: &Rol,
+    ) -> Option<&mut dyn Miembro> {
         match rol {
             Rol::Candidato => {
                 if let Some(c) = self.candidatos_aprobados.iter_mut().find(|v| v.id == *id) {
@@ -142,15 +145,14 @@ impl Eleccion {
                     let c = self.candidatos_pendientes.remove(pos);
                     self.candidatos_aprobados.push(c);
                     Ok(())
-                },
+                }
                 Rol::Votante => {
                     let v = self.votantes_pendientes.remove(pos);
                     self.votantes_aprobados.push(v);
                     Ok(())
                 }
             }
-        }
-        else {
+        } else {
             match rol {
                 Rol::Candidato => Err(Error::CandidatoNoExistente),
                 Rol::Votante => Err(Error::VotanteNoExistente),
@@ -166,14 +168,13 @@ impl Eleccion {
                 Rol::Candidato => {
                     self.candidatos_pendientes.remove(pos);
                     Ok(())
-                },
+                }
                 Rol::Votante => {
                     self.votantes_pendientes.remove(pos);
                     Ok(())
                 }
             }
-        }
-        else {
+        } else {
             match rol {
                 Rol::Candidato => Err(Error::CandidatoNoExistente),
                 Rol::Votante => Err(Error::VotanteNoExistente),
@@ -211,11 +212,14 @@ impl Eleccion {
             EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
             EstadoDeEleccion::EnCurso => {
                 // El código está raro con el fin no romper las reglas de ownership
-                if self.buscar_miembro_aprobado(&id_candidato, &Rol::Candidato).is_none()
+                if self
+                    .buscar_miembro_aprobado(&id_candidato, &Rol::Candidato)
+                    .is_none()
                 {
                     Err(Error::CandidatoNoExistente)
-                } 
-                else if let Some(votante) = self.buscar_miembro_aprobado(&id_votante, &Rol::Votante) {
+                } else if let Some(votante) =
+                    self.buscar_miembro_aprobado(&id_votante, &Rol::Votante)
+                {
                     votante.votar().map(|()| {
                         self.buscar_miembro_aprobado(&id_candidato, &Rol::Votante)
                             .unwrap()
@@ -243,15 +247,15 @@ mod tests {
         let eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
 
         assert_eq!(
-            eleccion.consultar_estado(1716138000000),  // 19/5/2024 17:00:00
+            eleccion.consultar_estado(1716138000000), // 19/5/2024 17:00:00
             EstadoDeEleccion::Pendiente
         );
         assert_eq!(
-            eleccion.consultar_estado(1716163199000),  // 19/5/2024 23:59:59
+            eleccion.consultar_estado(1716163199000), // 19/5/2024 23:59:59
             EstadoDeEleccion::Pendiente
         );
         assert_eq!(
-            eleccion.consultar_estado(1716163200000),  // 20/5/2024 00:00:00
+            eleccion.consultar_estado(1716163200000), // 20/5/2024 00:00:00
             EstadoDeEleccion::EnCurso
         );
         assert_eq!(
