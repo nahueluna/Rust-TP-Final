@@ -327,8 +327,6 @@ mod sistema_votacion {
 
     #[cfg(test)]
     mod tests {
-        use ink::env::test::set_caller;
-
         use super::*;
 
         /* Helpers */
@@ -349,6 +347,58 @@ mod sistema_votacion {
             }
         }
 
+        impl ContractEnv {
+            // Retorna un `ContractEnv` con 4 usuarios registrados en el sistema:
+            // Alice, Bob, Charlie y Django.
+            // El administrador es de id `contract_id`, no se delegaron los privilegios.
+            fn new_inicializado() -> Self {
+                let mut env = ContractEnv::default();
+                ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+
+                // Registrar a Alice
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+                env.contract
+                    .registrar_usuario(
+                        String::from("Alice"),
+                        String::from("A"),
+                        String::from("11111111"),
+                    )
+                    .unwrap();
+
+                // Registrar a Bob
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+                env.contract
+                    .registrar_usuario(
+                        String::from("Bob"),
+                        String::from("B"),
+                        String::from("22222222"),
+                    )
+                    .unwrap();
+
+                // Registrar a Charlie
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+                env.contract
+                    .registrar_usuario(
+                        String::from("Charlie"),
+                        String::from("C"),
+                        String::from("33333333"),
+                    )
+                    .unwrap();
+                
+                // Registrar a Django
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+                env.contract
+                    .registrar_usuario(
+                        String::from("Django"),
+                        String::from("D"),
+                        String::from("44444444"),
+                    )
+                    .unwrap();
+
+                env
+            }
+        }
+
         /* Tests */
 
         #[ink::test]
@@ -365,7 +415,7 @@ mod sistema_votacion {
                 .registrar_usuario(
                     String::from("Bob"),
                     String::from(""),
-                    String::from("11111111")
+                    String::from("22222222")
                 )
                 .is_ok());
             // El mismo AccountId intenta registrarse de nuevo, no debe poder
@@ -374,7 +424,7 @@ mod sistema_votacion {
                     .registrar_usuario(
                         String::from("Alice"),
                         String::from(""),
-                        String::from("22222222")
+                        String::from("11111111")
                     )
                     .unwrap_err()
                     .to_string(),
@@ -389,7 +439,7 @@ mod sistema_votacion {
                     .registrar_usuario(
                         String::from("Eve"),
                         String::from(""),
-                        String::from("11111111")
+                        String::from("66666666")
                     )
                     .unwrap_err()
                     .to_string(),
@@ -412,7 +462,7 @@ mod sistema_votacion {
                     .registrar_usuario(
                         String::from("Alice"),
                         String::from(""),
-                        String::from("22222222")
+                        String::from("11111111")
                     )
                     .unwrap_err()
                     .to_string(),
