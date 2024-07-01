@@ -1112,5 +1112,74 @@ mod sistema_votacion {
                 Error::VotacionFinalizada.to_string()
             );
         }
+
+        #[ink::test]
+        fn probar_get_candidatos() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    1,
+                    1,
+                    1,
+                    1970,
+                    0,
+                    2,
+                    1,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Intento pedir los candidatos de una eleccion que no existe
+            assert_eq!(env.contract.get_candidatos(u32::MAX),Err(Error::VotacionNoExiste));
+            
+            // Intento pedir los candidatos de una eleccion sin candidatos  
+            assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 01:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(3600000);
+
+            // Alice se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+
+            // Bob se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+
+            // Charlie se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+
+            // Intento pedir los candidatos de una eleccion sin candidatos aprobados
+            assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Admin aprueba a Alice como Candidato
+            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.alice, Rol::Candidato, EstadoAprobacion::Aprobado).unwrap();                
+
+            // Admin rechaza a Bob como Candidato
+            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.bob, Rol::Candidato, EstadoAprobacion::Rechazado).unwrap();  
+
+            // Admin aprueba a Charlie como Candidato
+            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.charlie, Rol::Candidato, EstadoAprobacion::Aprobado).unwrap();   
+
+            // Pido los candidatos aprobados
+            let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
+            let alice = env.accounts.alice;
+            let charlie = env.accounts.charlie;
+            // Los candidatos deben ser Alice y Charlie ya que son los unicos aprobados
+            let response = vec![(alice, env.contract.usuarios.get(alice).unwrap()),
+                                                                (charlie, env.contract.usuarios.get(charlie).unwrap())];
+            assert_eq!(candidatos,response);
+        }
     }
 }
