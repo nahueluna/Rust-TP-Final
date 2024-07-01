@@ -27,3 +27,24 @@ impl Candidato {
         Self { id, votos: 0 }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn probar_creacion_candidato(){
+        let candidato_id: [u8; 32] = [5; 32];
+        let candidato = Candidato::new(AccountId::from(candidato_id));
+        assert_eq!(candidato.votos,0);
+    }
+
+    #[test]
+    fn probar_votar_candidato(){
+        let candidato_id: [u8; 32] = [5; 32];
+        let mut candidato = Candidato::new(AccountId::from(candidato_id));
+        assert!(candidato.votar().is_ok());
+        assert_eq!(candidato.votos,1);        
+    }
+
+}    

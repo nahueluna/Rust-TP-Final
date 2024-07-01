@@ -14,7 +14,7 @@ pub enum EstadoAprobacion {
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 /// Representa un error al llamar a un metodo del sistema.
 pub enum Error {
     PermisosInsuficientes, // Intentar acceder a un metodo del administrador sin serlo.
