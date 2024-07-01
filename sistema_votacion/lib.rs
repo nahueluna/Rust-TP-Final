@@ -1060,6 +1060,24 @@ mod sistema_votacion {
                 Error::PermisosInsuficientes.to_string(),
             );
 
+            // Establecer el tiempo para que la eleccion este en curso
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(5400000);
+
+            // Admin no puede aprobar a Django porque la elección esta en curso
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.django,
+                        Rol::Votante,
+                        EstadoAprobacion::Rechazado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionEnCurso.to_string()
+            );
+
             // Establecer el tiempo en uno posterior a la elección
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(1700000000);
 
@@ -1146,6 +1164,17 @@ mod sistema_votacion {
             let response = vec![(alice, env.contract.usuarios.get(alice).unwrap()),
                                                                 (charlie, env.contract.usuarios.get(charlie).unwrap())];
             assert_eq!(candidatos,response);
+        }
+
+        #[ink::test]
+        fn probar_consultar_estado() {
+            // inicializar sistema con usuarios registrados
+            let env = ContractEnv::new_inicializado();
+
+            // Probar consultar el estado de una eleccion que no existe
+            assert_eq!(env.contract.consultar_estado(u32::MAX),Err(Error::VotacionNoExiste));
+
+            // Los otros casos de consultar_estado() ya fueron cubiertos en los tests anteriores
         }
     }
 }
