@@ -7,7 +7,6 @@ mod candidato;
 mod eleccion;
 pub mod enums;
 mod fecha;
-pub mod reportes;
 pub mod usuario;
 mod votante;
 

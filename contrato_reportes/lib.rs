@@ -4,7 +4,6 @@
 mod reportes {
     use ink::prelude::{string::String, vec::Vec};
     use sistema_votacion::enums::Error;
-    use sistema_votacion::reportes::ReporteVotantes;
     use sistema_votacion::usuario::Usuario;
     use sistema_votacion::SistemaVotacionRef;
 
