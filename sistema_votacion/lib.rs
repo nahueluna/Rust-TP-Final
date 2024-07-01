@@ -201,9 +201,9 @@ mod sistema_votacion {
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
                 return match votacion.consultar_estado(self.env().block_timestamp()) {
-                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
-                    EstadoDeEleccion::EnCurso => {
+                    EstadoDeEleccion::Pendiente => {
                         let res = match estado {
                             EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
                             EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
@@ -1058,24 +1058,6 @@ mod sistema_votacion {
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes.to_string(),
-            );
-
-            // Establecer el tiempo en uno previo a la elección
-            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
-
-            // Admin no puede aprobar a Django porque la elección no comenzó
-            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
-            assert_eq!(
-                env.contract
-                    .cambiar_estado_aprobacion(
-                        eleccion_id,
-                        env.accounts.django,
-                        Rol::Votante,
-                        EstadoAprobacion::Rechazado,
-                    )
-                    .unwrap_err()
-                    .to_string(),
-                Error::VotacionNoIniciada.to_string()
             );
 
             // Establecer el tiempo en uno posterior a la elección
