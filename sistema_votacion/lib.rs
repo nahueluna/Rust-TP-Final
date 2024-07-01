@@ -327,6 +327,11 @@ mod sistema_votacion {
 
     #[cfg(test)]
     mod tests {
+        use ink::{
+            env::{DefaultEnvironment, Environment},
+            primitives::AccountId,
+        };
+
         use super::*;
 
         /* Helpers */
@@ -342,7 +347,16 @@ mod sistema_votacion {
                 Self {
                     contract: SistemaVotacion::new(),
                     contract_id: ink::env::account_id::<ink::env::DefaultEnvironment>(),
-                    accounts: ink::env::test::default_accounts::<ink::env::DefaultEnvironment>(),
+                    // Por defecto se superpone el `AccountId` del contrato
+                    // con el de alice, por eso esto es necesario.
+                    accounts: ink::env::test::DefaultAccounts {
+                        alice: <DefaultEnvironment as Environment>::AccountId::from([0xFF; 32]),
+                        bob: <DefaultEnvironment as Environment>::AccountId::from([0xFE; 32]),
+                        charlie: <DefaultEnvironment as Environment>::AccountId::from([0xFD; 32]),
+                        django: <DefaultEnvironment as Environment>::AccountId::from([0xFC; 32]),
+                        eve: <DefaultEnvironment as Environment>::AccountId::from([0xFB; 32]),
+                        frank: <DefaultEnvironment as Environment>::AccountId::from([0xFA; 32]),
+                    },
                 }
             }
         }
@@ -384,7 +398,7 @@ mod sistema_votacion {
                         String::from("33333333"),
                     )
                     .unwrap();
-                
+
                 // Registrar a Django
                 ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
                 env.contract
@@ -418,6 +432,7 @@ mod sistema_votacion {
                     String::from("22222222")
                 )
                 .is_ok());
+
             // El mismo AccountId intenta registrarse de nuevo, no debe poder
             assert_eq!(
                 env.contract
@@ -448,14 +463,68 @@ mod sistema_votacion {
         }
 
         #[ink::test]
+        fn probar_es_admin() {
+            let env = ContractEnv::default();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // La cuenta invocante es admin
+            assert!(env.contract.es_admin());
+
+            // Eve no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            assert!(!env.contract.es_admin());
+        }
+
+        #[ink::test]
+        fn probar_delegar_admin() {
+            let mut env = ContractEnv::default();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // La cuenta que crea el contrato le cede los privilegios a Alice
+            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
+
+            // Alice prueba si es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(env.contract.es_admin());
+
+            // La cuenta que crea el contrato ya no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert!(!env.contract.es_admin());
+
+            // Alice le cede los privilegios a Bob
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(env.contract.delegar_admin(env.accounts.bob).is_ok());
+
+            // Bob prueba si es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert!(env.contract.delegar_admin(env.accounts.frank).is_ok());
+
+            // Alice ya no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(!env.contract.es_admin());
+
+            // Eve no puede delegar privilegios porque no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            assert_eq!(
+                env.contract
+                    .delegar_admin(env.accounts.alice)
+                    .unwrap_err()
+                    .to_string(),
+                Error::PermisosInsuficientes.to_string()
+            );
+        }
+
+        #[ink::test]
         fn probar_registro_sistema_admin() {
             let mut env = ContractEnv::default();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Alice es ahora admin del sistema
+            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
 
             // Alice como invocante del contrato
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            // Alice es admin del sistema
-            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
             // Registrar a Alice en el sistema no debe ser posible
             assert_eq!(
                 env.contract
@@ -475,23 +544,45 @@ mod sistema_votacion {
             let mut env = ContractEnv::default();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
-            // Se crea una elección con exito
-            assert!(env
-                .contract
-                .crear_eleccion(
-                    String::from("Presidente"),
-                    0,
-                    0,
-                    1,
-                    1,
-                    1970,
-                    1,
-                    1,
-                    1,
-                    1,
-                    1970,
-                )
-                .is_ok());
+
+            // Se crea una elección con exito, de id = 1
+            assert_eq!(
+                env.contract
+                    .crear_eleccion(
+                        String::from("Presidente"),
+                        0,
+                        0,
+                        1,
+                        1,
+                        1970,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1970,
+                    )
+                    .unwrap(),
+                1
+            );
+            // Se crea una segunda elección con exito, de id = 2
+            assert_eq!(
+                env.contract
+                    .crear_eleccion(
+                        String::from("Presidente"),
+                        0,
+                        0,
+                        1,
+                        1,
+                        1970,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1970,
+                    )
+                    .unwrap(),
+                2
+            );
 
             // La creación falla porque la fecha de finalización es posterior a la de inicio.
             assert_eq!(
@@ -526,7 +617,7 @@ mod sistema_votacion {
                         1,
                         1,
                         1970,
-                        1,
+                        0,
                         1,
                         1,
                         1,
@@ -535,6 +626,486 @@ mod sistema_votacion {
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_registro_eleccion() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    0,
+                    1,
+                    1,
+                    1970,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para registrarse
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Alice se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Bob se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Charlie se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .is_ok());
+
+            // Django se confundió el id de la elección
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(u32::MAX, Rol::Votante)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoExiste.to_string()
+            );
+
+            // Eve se intenta registrar en la elección, pero no existe en el sistema
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                    .unwrap_err()
+                    .to_string(),
+                Error::UsuarioNoExistente.to_string()
+            );
+
+            // Alice olvidó que ya se había registrado, e intenta volver a hacerlo
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .unwrap_err()
+                    .to_string(),
+                Error::CandidatoExistente.to_string()
+            );
+
+            // Charlie olvidó que ya se había registrado, e intenta volver a hacerlo
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotanteExistente.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_registro_eleccion_tiempo() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    // inicio: 31/1/1970 00:00hs
+                    0,
+                    0,
+                    31,
+                    1,
+                    1970,
+                    // fin: 1/2/1970 00:00hs
+                    0,
+                    0,
+                    1,
+                    2,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno previo al período válido
+            // 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Alice se registra en la elección como `Rol::Candidato`, pero la elección aún no
+            // inició
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoIniciada.to_string()
+            );
+
+            // Establecer el tiempo del bloque al mínimo antes del válido
+            // 29/01/1970 23:59hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Nuevamente, Alice no puede registrarse
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoIniciada.to_string()
+            );
+
+            // Establecer el tiempo al último instante **válido** antes de finalizar
+            // 31/01/1970 23:59hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(2678340000);
+
+            // Ahora Alice puede registrarse
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Establecer el tiempo del bloque al primer instante **inválido**, tras finalizar
+            // 01/02/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(2678400000);
+
+            // Bob se olvidó de registrarse, y no puede realizarlo porque la elección finalizó
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionFinalizada.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_get_no_verificados() {
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    0,
+                    1,
+                    1,
+                    1970,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Como la elección no tiene miembros, retorna un vector vacío
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .unwrap(),
+                vec![]
+            );
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .unwrap(),
+                vec![]
+            );
+
+            // Alice se registra como Candidato
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
+
+            // Bob se registra como Votante
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            // El único candidato no verificado es Alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .unwrap(),
+                vec![env.accounts.alice]
+            );
+
+            // El único votante no verificado es Charlie
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .unwrap(),
+                vec![env.accounts.charlie]
+            );
+
+            // Eve no puede obtener los miembros de una elección no verificados
+            // porque no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .unwrap_err()
+                    .to_string(),
+                Error::PermisosInsuficientes.to_string()
+            );
+
+            // El admin intenta obtener una elección inexistente
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(u32::MAX, Rol::Votante)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoExiste.to_string()
+            );
+        }
+
+        #[ink::test]
+        fn probar_estado_aprobacion() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    1,
+                    1,
+                    1,
+                    1970,
+                    0,
+                    2,
+                    1,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 01:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(3600000);
+
+            // Alice se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Bob se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Charlie se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .is_ok());
+
+            // Django se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .is_ok());
+
+            // Alice y Bob están pendientes de verificación como Candidatos
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .unwrap(),
+                vec![env.accounts.alice, env.accounts.bob]
+            );
+
+            // Charlie y Django están pendientes de verificación como Votantes
+            assert_eq!(
+                env.contract
+                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .unwrap(),
+                vec![env.accounts.charlie, env.accounts.django]
+            );
+
+            // Admin aprueba a Alice como Candidato
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.alice,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .is_ok());
+
+            // Admin rechaza a Bob como Candidato
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.bob,
+                    Rol::Candidato,
+                    EstadoAprobacion::Rechazado,
+                )
+                .is_ok());
+
+            // Admin aprueba a Charlie como Votante
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.charlie,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .is_ok());
+
+            // Admin rechaza a Django como Votante
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.django,
+                    Rol::Votante,
+                    EstadoAprobacion::Rechazado,
+                )
+                .is_ok());
+
+            // Admin no puede aprobar a Alice como Votante, ya que no está registrada en ese rol
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.alice,
+                        Rol::Votante,
+                        EstadoAprobacion::Aprobado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotanteNoExistente.to_string()
+            );
+
+            // Admin no puede aprobar a Frank porque no está registrado
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.frank,
+                        Rol::Candidato,
+                        EstadoAprobacion::Rechazado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::CandidatoNoExistente.to_string()
+            );
+
+            // Admin no puede aprobar a Frank porque se confundió el id de elección
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        u32::MAX,
+                        env.accounts.django,
+                        Rol::Votante,
+                        EstadoAprobacion::Rechazado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoExiste.to_string()
+            );
+
+            // Eve no puede cambiar el estado de aprobación, porque no es admin
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.alice,
+                        Rol::Candidato,
+                        EstadoAprobacion::Aprobado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::PermisosInsuficientes.to_string(),
+            );
+
+            // Establecer el tiempo en uno previo a la elección
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Admin no puede aprobar a Django porque la elección no comenzó
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.django,
+                        Rol::Votante,
+                        EstadoAprobacion::Rechazado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoIniciada.to_string()
+            );
+
+            // Establecer el tiempo en uno posterior a la elección
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(1700000000);
+
+            // Admin no puede aprobar a Django porque la elección finalizó
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract
+                    .cambiar_estado_aprobacion(
+                        eleccion_id,
+                        env.accounts.django,
+                        Rol::Votante,
+                        EstadoAprobacion::Rechazado,
+                    )
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionFinalizada.to_string()
             );
         }
     }
