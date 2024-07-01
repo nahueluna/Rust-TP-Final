@@ -27,6 +27,7 @@ pub enum Error {
     CandidatoNoExistente,  // Intentar aprobar un candidato que no existe.
     VotacionNoExiste,      // Intentar registrar un votante en una eleccion que no existe.
     VotacionNoIniciada,    // Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
+    VotacionEnCurso,       // Intentar registrar a un miembro en una eleccion que ya inicio.
     VotacionFinalizada,    // La votación finalizó, no es posible operar
     VotanteYaVoto,         // El votante ya votó, no puede hacerlo dos veces
     FechaInvalida,         // Se intenta crear una elección donde la fecha fin > inicio
@@ -59,6 +60,7 @@ impl Display for Error {
             }
             Error::VotacionNoExiste => write!(f, "La votación solicitada no existe en el sistema"),
             Error::VotacionNoIniciada => write!(f, "La votación solicitada no ha comenzado"),
+            Error::VotacionEnCurso => write!(f, "La votación se encuentra en curso."),
             Error::VotacionFinalizada => write!(f, "La votación solicitada ya ha finalizado"),
             Error::VotanteYaVoto => write!(f, "El votante solicitado ya ha votado"),
             Error::FechaInvalida => write!(

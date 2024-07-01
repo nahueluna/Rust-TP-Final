@@ -200,9 +200,9 @@ mod sistema_votacion {
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
                 return match votacion.consultar_estado(self.env().block_timestamp()) {
-                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
-                    EstadoDeEleccion::EnCurso => {
+                    EstadoDeEleccion::Pendiente => {
                         let res = match estado {
                             EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
                             EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
@@ -645,14 +645,14 @@ mod sistema_votacion {
                 .crear_eleccion(
                     String::from("Presidente"),
                     0,
-                    0,
                     1,
-                    1,
+                    2,
+                    2,
                     1970,
                     0,
-                    1,
-                    1,
-                    1,
+                    2,
+                    2,
+                    2,
                     1970,
                 )
                 .unwrap();
@@ -749,43 +749,27 @@ mod sistema_votacion {
                 )
                 .unwrap();
 
-            // Establecer el tiempo del bloque en uno previo al período válido
+            // Establecer el tiempo del bloque en uno previo al inicio
             // 01/01/1970 00:00hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
-            // Alice se registra en la elección como `Rol::Candidato`, pero la elección aún no
-            // inició
+            // Alice se registra en la elección como `Rol::Candidato`.
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            assert_eq!(
-                env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
-                    .unwrap_err()
-                    .to_string(),
-                Error::VotacionNoIniciada.to_string()
-            );
+            assert!(env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).is_ok());
 
-            // Establecer el tiempo del bloque al mínimo antes del válido
-            // 29/01/1970 23:59hs
-            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
-
-            // Nuevamente, Alice no puede registrarse
-            assert_eq!(
-                env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
-                    .unwrap_err()
-                    .to_string(),
-                Error::VotacionNoIniciada.to_string()
-            );
-
-            // Establecer el tiempo al último instante **válido** antes de finalizar
+            // Establecer el tiempo al último instante antes del inicio de la eleccion.
             // 31/01/1970 23:59hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(2678340000);
 
-            // Ahora Alice puede registrarse
-            assert!(env
-                .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
-                .is_ok());
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            // Ahora Charlie no puede registrarse
+            assert_eq!(
+                env.contract
+                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionEnCurso.to_string()
+            );
 
             // Establecer el tiempo del bloque al primer instante **inválido**, tras finalizar
             // 01/02/1970 00:00hs
@@ -815,13 +799,13 @@ mod sistema_votacion {
                     String::from("Presidente"),
                     0,
                     0,
-                    1,
-                    1,
+                    2,
+                    2,
                     1970,
                     0,
                     1,
-                    1,
-                    1,
+                    2,
+                    2,
                     1970,
                 )
                 .unwrap();
@@ -920,8 +904,8 @@ mod sistema_votacion {
                 )
                 .unwrap();
 
-            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 01:00hs
-            ink::env::test::set_block_timestamp::<DefaultEnvironment>(3600000);
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
@@ -1075,10 +1059,10 @@ mod sistema_votacion {
                 Error::PermisosInsuficientes.to_string(),
             );
 
-            // Establecer el tiempo en uno previo a la elección
-            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+            // Establecer el tiempo para que la eleccion este en curso
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(5400000);
 
-            // Admin no puede aprobar a Django porque la elección no comenzó
+            // Admin no puede aprobar a Django porque la elección esta en curso
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
@@ -1090,7 +1074,7 @@ mod sistema_votacion {
                     )
                     .unwrap_err()
                     .to_string(),
-                Error::VotacionNoIniciada.to_string()
+                Error::VotacionEnCurso.to_string()
             );
 
             // Establecer el tiempo en uno posterior a la elección
@@ -1126,13 +1110,13 @@ mod sistema_votacion {
                     String::from("Presidente"),
                     0,
                     1,
-                    1,
-                    1,
+                    2,
+                    2,
                     1970,
                     0,
                     2,
-                    1,
-                    1,
+                    2,
+                    2,
                     1970,
                 )
                 .unwrap();
@@ -1143,8 +1127,8 @@ mod sistema_votacion {
             // Intento pedir los candidatos de una eleccion sin candidatos  
             assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
 
-            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 01:00hs
-            ink::env::test::set_block_timestamp::<DefaultEnvironment>(3600000);
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
@@ -1179,6 +1163,17 @@ mod sistema_votacion {
             let response = vec![(alice, env.contract.usuarios.get(alice).unwrap()),
                                                                 (charlie, env.contract.usuarios.get(charlie).unwrap())];
             assert_eq!(candidatos,response);
+        }
+
+        #[ink::test]
+        fn probar_consultar_estado() {
+            // inicializar sistema con usuarios registrados
+            let env = ContractEnv::new_inicializado();
+
+            // Probar consultar el estado de una eleccion que no existe
+            assert_eq!(env.contract.consultar_estado(u32::MAX),Err(Error::VotacionNoExiste));
+
+            // Los otros casos de consultar_estado() ya fueron cubiertos en los tests anteriores
         }
     }
 }
