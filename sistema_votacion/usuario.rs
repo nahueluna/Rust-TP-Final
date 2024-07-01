@@ -3,7 +3,7 @@ use ink::prelude::string::String;
 /// Información personal del usuario que integra el sistema
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Usuario {
     pub nombre: String,
     pub apellido: String,

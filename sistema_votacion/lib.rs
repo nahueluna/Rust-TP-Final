@@ -203,9 +203,13 @@ mod sistema_votacion {
                 return match votacion.consultar_estado(self.env().block_timestamp()) {
                     EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
-                    EstadoDeEleccion::EnCurso => match estado {
-                        EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
-                        EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
+                    EstadoDeEleccion::EnCurso => {
+                        let res = match estado {
+                            EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
+                            EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
+                        };
+                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                        res
                     },
                 };
             } else {
