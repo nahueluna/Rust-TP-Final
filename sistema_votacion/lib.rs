@@ -281,6 +281,15 @@ mod sistema_votacion {
             self.env().caller() == self.admin
         }
 
+        /// Método interno que retorna `true` si el invocante del contrato es el
+        /// contrato de reportes;
+        /// `false` en cualquier otro caso
+        fn es_contrato_reportes(&self) -> bool {
+            match self.contrato_reportes {
+                Some(c) => self.env().caller() == c,
+                None => false,
+            }
+        }
         /// Retorna `Result<T, E>` con vector de ids e informacion del usuario o `Error` en caso de que la votacion
         /// no exista
         ///
