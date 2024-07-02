@@ -28,6 +28,7 @@ mod sistema_votacion {
     #[ink(storage)]
     pub struct SistemaVotacion {
         admin: AccountId,
+        contrato_reportes: Option<AccountId>,
         elecciones: StorageVec<Eleccion>,
         id_usuarios: Mapping<String, AccountId>,
         usuarios: Mapping<AccountId, Usuario>,
@@ -41,6 +42,7 @@ mod sistema_votacion {
             let admin = Self::env().caller();
             Self {
                 admin,
+                contrato_reportes: Option:: None, 
                 elecciones: StorageVec::new(),
                 id_usuarios: Mapping::new(),
                 usuarios: Mapping::new(),
@@ -319,6 +321,20 @@ mod sistema_votacion {
             } else {
                 Err(Error::VotacionNoExiste)
             }
+        }
+
+        //get usuario por account_id, simple por ahora, devuelve una copia
+        #[ink(message)]
+        pub fn get_usuarios(&self, account_id: AccountId) -> Option<Usuario>{
+            self.usuarios.get(&account_id).clone()
+        }
+
+        fn delegar_contrato_reportes(&mut self, account_id: AccountId)-> Result<(), Error>{
+            if !self.es_admin(){
+                return Err(Error::PermisosInsuficientes);
+            }
+            self.contrato_reportes = Some(account_id);
+            Ok(()) //exitoso
         }
     }
 
