@@ -70,7 +70,14 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn reporte_resultado(&self, id_eleccion: u32) {
+        pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
+            match self.contrato_votacion.get_candidatos(id_eleccion) {
+                Ok(mut v) => {
+                    v.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                    Ok(v)
+                },
+                Err(e) => Err(e),
+            }
         }
     }
 

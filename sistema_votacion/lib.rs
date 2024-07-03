@@ -231,7 +231,7 @@ mod sistema_votacion {
         /// Produce panic si el candidato obtenido de la elección
         /// no está registrado en el sistema
         #[ink(message)]
-        pub fn get_candidatos(&mut self, id_votacion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
+        pub fn get_candidatos(&self, id_votacion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
             if !self.es_contrato_reportes() {
                 Err(Error::PermisosInsuficientes)
             } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
