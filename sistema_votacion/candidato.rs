@@ -34,10 +34,6 @@ impl Candidato {
     pub fn new(id: AccountId) -> Self {
         Self { id, votos: 0 }
     }
-
-    pub fn get_votos(&self) -> u32 {
-        self.votos
-    }
 }
 
 #[cfg(test)]

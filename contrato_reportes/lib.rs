@@ -2,8 +2,6 @@
 
 #[ink::contract]
 mod reportes {
-    use core::ops::Div;
-
     use ink::prelude::vec::Vec;
     use sistema_votacion::eleccion::Miembro;
     use sistema_votacion::enums::Error;
@@ -73,7 +71,6 @@ mod reportes {
 
         #[ink(message)]
         pub fn reporte_resultado(&self, id_eleccion: u32) {
-            todo!()
         }
     }
 

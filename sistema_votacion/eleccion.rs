@@ -508,13 +508,13 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         let arr_can = eleccion.get_no_verificados(&Rol::Candidato);
-        assert_eq!(arr_can.is_empty(), false);
+        assert!(!arr_can.is_empty());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         let arr_vot = eleccion.get_no_verificados(&Rol::Votante);
-        assert_eq!(arr_vot.is_empty(), false);
+        assert!(!arr_vot.is_empty());
     }
 
     #[test]
@@ -531,14 +531,14 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
         let arr_can = eleccion.get_miembros(&Rol::Candidato);
-        assert_eq!(arr_can.is_empty(), false);
+        assert!(!arr_can.is_empty());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Votante).unwrap();
         let arr_vot = eleccion.get_miembros(&Rol::Votante);
-        assert_eq!(arr_vot.is_empty(), false);
+        assert!(!arr_vot.is_empty());
     }
 
     #[test]
@@ -561,6 +561,15 @@ mod tests {
         eleccion.aprobar_miembro(&m_id2, &Rol::Votante).unwrap();
 
         assert!(eleccion.votar(m_id2, m_id, 1716163200000).is_ok());
+        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 1);
+
+        let miembro_id3: [u8; 32] = [1; 32];
+        let m_id3 = AccountId::from(miembro_id3);
+        eleccion.añadir_miembro(m_id3, Rol::Votante, 0).unwrap();
+        eleccion.aprobar_miembro(&m_id3, &Rol::Votante).unwrap();
+
+        assert!(eleccion.votar(m_id3, m_id, 1716163200000).is_ok());
+        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 2);
     }
 
     #[test]
