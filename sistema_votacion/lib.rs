@@ -4,11 +4,11 @@ pub use self::sistema_votacion::SistemaVotacion;
 pub use self::sistema_votacion::SistemaVotacionRef;
 
 mod candidato;
-mod eleccion;
+pub mod eleccion;
 pub mod enums;
 mod fecha;
 pub mod usuario;
-mod votante;
+pub mod votante;
 
 #[ink::contract]
 mod sistema_votacion {
@@ -42,7 +42,7 @@ mod sistema_votacion {
             let admin = Self::env().caller();
             Self {
                 admin,
-                contrato_reportes: Option:: None, 
+                contrato_reportes: Option::None,
                 elecciones: StorageVec::new(),
                 id_usuarios: Mapping::new(),
                 usuarios: Mapping::new(),
@@ -206,12 +206,16 @@ mod sistema_votacion {
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
                     EstadoDeEleccion::Pendiente => {
                         let res = match estado {
-                            EstadoAprobacion::Aprobado => votacion.aprobar_miembro(&id_miembro, &rol),
-                            EstadoAprobacion::Rechazado => votacion.rechazar_miembro(&id_miembro, &rol),
+                            EstadoAprobacion::Aprobado => {
+                                votacion.aprobar_miembro(&id_miembro, &rol)
+                            }
+                            EstadoAprobacion::Rechazado => {
+                                votacion.rechazar_miembro(&id_miembro, &rol)
+                            }
                         };
                         self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
                         res
-                    },
+                    }
                 };
             } else {
                 Err(Error::VotacionNoExiste)
@@ -282,7 +286,7 @@ mod sistema_votacion {
         }
 
         /// Método interno que retorna `true` si el invocante del contrato es el
-        /// contrato de reportes;
+        /// contrato de reportes
         /// `false` en cualquier otro caso
         fn es_contrato_reportes(&self) -> bool {
             match self.contrato_reportes {
@@ -290,6 +294,7 @@ mod sistema_votacion {
                 None => false,
             }
         }
+
         /// Retorna `Result<T, E>` con vector de ids e informacion del usuario o `Error` en caso de que la votacion
         /// no exista
         ///
@@ -332,14 +337,27 @@ mod sistema_votacion {
             }
         }
 
-        //get usuario por account_id, simple por ahora, devuelve una copia
+        // Obtener un usuario cuyo AccountId es `account_id`
+        // Devuelve `Err(Error::PermisosInsuficientes)` si no es el contrato de reportes
+        // Devuelve `Ok(None)` si no esta establecido el contrato de reportes
         #[ink(message)]
-        pub fn get_usuarios(&self, account_id: AccountId) -> Option<Usuario>{
-            self.usuarios.get(&account_id).clone()
+        pub fn get_usuarios(&self, account_id: AccountId) -> Result<Option<Usuario>, Error> {
+            if let Some(reportes_id) = self.contrato_reportes {
+                if self.env().caller() == reportes_id {
+                    Ok(self.usuarios.get(account_id).clone())
+                } else {
+                    Err(Error::PermisosInsuficientes)
+                }
+            } else {
+                Ok(None)
+            }
         }
 
-        fn delegar_contrato_reportes(&mut self, account_id: AccountId)-> Result<(), Error>{
-            if !self.es_admin(){
+        /// Permite al administrador establecer el AccountId del contrato que podrá acceder
+        /// a una serie de métodos que obtienen información de una elección
+        #[ink(message)]
+        pub fn delegar_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
+            if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
             self.contrato_reportes = Some(account_id);
@@ -392,6 +410,7 @@ mod sistema_votacion {
         impl ContractEnv {
             // Retorna un `ContractEnv` con 4 usuarios registrados en el sistema:
             // Alice, Bob, Charlie y Django.
+            // (No está registrada eve, se utiliza para testear permisos)
             // El administrador es de id `contract_id`, no se delegaron los privilegios.
             fn new_inicializado() -> Self {
                 let mut env = ContractEnv::default();
@@ -780,7 +799,10 @@ mod sistema_votacion {
 
             // Alice se registra en la elección como `Rol::Candidato`.
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            assert!(env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).is_ok());
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
 
             // Establecer el tiempo al último instante antes del inicio de la eleccion.
             // 31/01/1970 23:59hs
@@ -1147,9 +1169,12 @@ mod sistema_votacion {
                 .unwrap();
 
             // Intento pedir los candidatos de una eleccion que no existe
-            assert_eq!(env.contract.get_candidatos(u32::MAX),Err(Error::VotacionNoExiste));
-            
-            // Intento pedir los candidatos de una eleccion sin candidatos  
+            assert_eq!(
+                env.contract.get_candidatos(u32::MAX),
+                Err(Error::VotacionNoExiste)
+            );
+
+            // Intento pedir los candidatos de una eleccion sin candidatos
             assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
 
             // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
@@ -1157,37 +1182,66 @@ mod sistema_votacion {
 
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
 
             // Bob se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
-            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
 
             // Charlie se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
-            env.contract.registrar_en_eleccion(eleccion_id, Rol::Candidato).unwrap();
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
 
             // Intento pedir los candidatos de una eleccion sin candidatos aprobados
             assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             // Admin aprueba a Alice como Candidato
-            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.alice, Rol::Candidato, EstadoAprobacion::Aprobado).unwrap();                
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.alice,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
 
             // Admin rechaza a Bob como Candidato
-            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.bob, Rol::Candidato, EstadoAprobacion::Rechazado).unwrap();  
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.bob,
+                    Rol::Candidato,
+                    EstadoAprobacion::Rechazado,
+                )
+                .unwrap();
 
             // Admin aprueba a Charlie como Candidato
-            env.contract.cambiar_estado_aprobacion(eleccion_id, env.accounts.charlie, Rol::Candidato, EstadoAprobacion::Aprobado).unwrap();   
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.charlie,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
 
             // Pido los candidatos aprobados
             let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
             let alice = env.accounts.alice;
             let charlie = env.accounts.charlie;
             // Los candidatos deben ser Alice y Charlie ya que son los unicos aprobados
-            let response = vec![(alice, env.contract.usuarios.get(alice).unwrap()),
-                                                                (charlie, env.contract.usuarios.get(charlie).unwrap())];
-            assert_eq!(candidatos,response);
+            let response = vec![
+                (alice, env.contract.usuarios.get(alice).unwrap()),
+                (charlie, env.contract.usuarios.get(charlie).unwrap()),
+            ];
+            assert_eq!(candidatos, response);
         }
 
         #[ink::test]
@@ -1196,7 +1250,10 @@ mod sistema_votacion {
             let env = ContractEnv::new_inicializado();
 
             // Probar consultar el estado de una eleccion que no existe
-            assert_eq!(env.contract.consultar_estado(u32::MAX),Err(Error::VotacionNoExiste));
+            assert_eq!(
+                env.contract.consultar_estado(u32::MAX),
+                Err(Error::VotacionNoExiste)
+            );
 
             // Los otros casos de consultar_estado() ya fueron cubiertos en los tests anteriores
         }

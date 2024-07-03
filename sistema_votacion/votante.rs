@@ -25,6 +25,10 @@ impl Miembro for Votante {
             Ok(())
         }
     }
+
+    fn get_account_id(&self) -> AccountId {
+        self.id
+    }
 }
 
 impl Votante {

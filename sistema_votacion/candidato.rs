@@ -18,6 +18,10 @@ impl Miembro for Candidato {
         self.votos += 1;
         Ok(())
     }
+
+    fn get_account_id(&self) -> AccountId {
+        self.id
+    }
 }
 
 impl Candidato {
@@ -33,18 +37,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn probar_creacion_candidato(){
+    fn probar_creacion_candidato() {
         let candidato_id: [u8; 32] = [5; 32];
         let candidato = Candidato::new(AccountId::from(candidato_id));
-        assert_eq!(candidato.votos,0);
+        assert_eq!(candidato.votos, 0);
     }
 
     #[test]
-    fn probar_votar_candidato(){
+    fn probar_votar_candidato() {
         let candidato_id: [u8; 32] = [5; 32];
         let mut candidato = Candidato::new(AccountId::from(candidato_id));
         assert!(candidato.votar().is_ok());
-        assert_eq!(candidato.votos,1);        
+        assert_eq!(candidato.votos, 1);
     }
+}
 
-}    

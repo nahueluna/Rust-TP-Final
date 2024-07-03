@@ -2,9 +2,11 @@
 
 #[ink::contract]
 mod reportes {
-    use ink::prelude::{string::String, vec::Vec};
+    use ink::prelude::vec::Vec;
+    use sistema_votacion::eleccion::Miembro;
     use sistema_votacion::enums::Error;
-    use sistema_votacion::usuario::Usuario;
+    use sistema_votacion::enums::EstadoDeEleccion;
+    use sistema_votacion::usuario::*;
     use sistema_votacion::SistemaVotacionRef;
 
     #[ink(storage)]
@@ -19,22 +21,30 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn test(
-            &self,
-            nombre: String,
-            apellido: String,
-            dni: String,
-        ) -> Result<Usuario, Error> {
-            if nombre == *"error" {
-                Err(Error::VotacionNoExiste)
-            } else {
-                Ok(Usuario::new(nombre, apellido, dni))
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+            // no funciona el operador `?`, a veces anda a veces no.
+            // entonces a veces tuve que usar match a veces no, idk
+            // tampoco puedo implementar std::error::Error, sooo
+            match self.contrato_votacion.consultar_estado(id_eleccion) {
+                Ok(estado) => match estado {
+                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => (),
+                },
+                Err(e) => return Err(e),
             }
-        }
 
-        #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) {
-            todo!()
+            let votantes_aprobados = self.contrato_votacion.get_votantes_aprobados(id_eleccion)?;
+            Ok(votantes_aprobados
+                .iter()
+                .map(|v| {
+                    // Si nada nefasto está sucediendo, esto no debe fallar jamás
+                    match self.contrato_votacion.get_usuarios(v.get_account_id()) {
+                        Ok(opt) => opt.unwrap(),
+                        Err(e) => panic!("{:?}", e),
+                    }
+                })
+                .collect())
         }
 
         #[ink(message)]
