@@ -29,6 +29,14 @@ impl Miembro for Votante {
     fn get_account_id(&self) -> AccountId {
         self.id
     }
+
+    fn get_votos(&self) -> u32 {
+        if self.ha_votado {
+            1
+        } else {
+            0
+        }
+    }
 }
 
 impl Votante {

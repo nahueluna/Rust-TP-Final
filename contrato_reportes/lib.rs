@@ -2,6 +2,8 @@
 
 #[ink::contract]
 mod reportes {
+    use core::ops::Div;
+
     use ink::prelude::vec::Vec;
     use sistema_votacion::eleccion::Miembro;
     use sistema_votacion::enums::Error;
@@ -48,8 +50,25 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn reporte_participacion(&self, id_eleccion: u32) {
-            todo!()
+        pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, u32), Error> {
+            match self.contrato_votacion.consultar_estado(id_eleccion) {
+                Ok(estado) => match estado {
+                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => (),
+                },
+                Err(e) => return Err(e),
+            }
+
+            let votantes = self.contrato_votacion.get_votantes_aprobados(id_eleccion)?;
+
+            let cantidad_de_votantes = votantes.len() as u32;
+            let cantidad_de_votantes_que_votaron =
+                votantes.iter().fold(0, |acc, v| acc + v.get_votos());
+
+            let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
+
+            Ok((cantidad_de_votantes, porcentaje))
         }
 
         #[ink(message)]

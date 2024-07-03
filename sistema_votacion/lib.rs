@@ -13,6 +13,7 @@ pub mod votante;
 #[ink::contract]
 mod sistema_votacion {
     use crate::eleccion::Eleccion;
+    use crate::eleccion::Miembro;
     use crate::eleccion::Rol;
     use crate::enums::*;
     use crate::fecha::Fecha;
@@ -238,11 +239,11 @@ mod sistema_votacion {
                     .candidatos_aprobados
                     .iter()
                     .map(|c| {
-                        let Some(u) = self.usuarios.get(c.id) else {
+                        let Some(u) = self.usuarios.get(c.get_account_id()) else {
                             panic!("{}", Error::CandidatoNoExistente);
                         };
 
-                        (c.id, u)
+                        (c.get_account_id(), u)
                     })
                     .collect();
 
@@ -338,7 +339,8 @@ mod sistema_votacion {
         }
 
         // Obtener un usuario cuyo AccountId es `account_id`
-        // Devuelve `Err(Error::PermisosInsuficientes)` si no es el contrato de reportes
+        // Devuelve `Err(Error::PermisosInsuficientes)` si el invocante no
+        // es el contrato de reportes
         // Devuelve `Ok(None)` si no esta establecido el contrato de reportes
         #[ink(message)]
         pub fn get_usuarios(&self, account_id: AccountId) -> Result<Option<Usuario>, Error> {

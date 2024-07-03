@@ -8,7 +8,7 @@ use crate::{eleccion::Miembro, enums::Error};
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug)]
 pub struct Candidato {
-    pub id: AccountId,
+    id: AccountId,
     votos: u32,
 }
 
@@ -22,6 +22,10 @@ impl Miembro for Candidato {
     fn get_account_id(&self) -> AccountId {
         self.id
     }
+
+    fn get_votos(&self) -> u32 {
+        self.votos
+    }
 }
 
 impl Candidato {
@@ -29,6 +33,10 @@ impl Candidato {
     /// Inicializa con cero votos recibidos.
     pub fn new(id: AccountId) -> Self {
         Self { id, votos: 0 }
+    }
+
+    pub fn get_votos(&self) -> u32 {
+        self.votos
     }
 }
 

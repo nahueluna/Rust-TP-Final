@@ -35,6 +35,7 @@ pub enum Rol {
 pub trait Miembro {
     fn votar(&mut self) -> Result<(), Error>;
     fn get_account_id(&self) -> AccountId;
+    fn get_votos(&self) -> u32;
 }
 
 impl Eleccion {
@@ -96,7 +97,10 @@ impl Eleccion {
     /// este no se encuentra.
     pub fn get_posicion_miembro_pendiente(&self, id: &AccountId, rol: &Rol) -> Option<usize> {
         match rol {
-            Rol::Candidato => self.candidatos_pendientes.iter().position(|c| &c.id == id),
+            Rol::Candidato => self
+                .candidatos_pendientes
+                .iter()
+                .position(|c| &c.get_account_id() == id),
             Rol::Votante => self.votantes_pendientes.iter().position(|c| &c.id == id),
         }
     }
@@ -112,7 +116,11 @@ impl Eleccion {
     ) -> Option<&mut dyn Miembro> {
         match rol {
             Rol::Candidato => {
-                if let Some(c) = self.candidatos_aprobados.iter_mut().find(|v| v.id == *id) {
+                if let Some(c) = self
+                    .candidatos_aprobados
+                    .iter_mut()
+                    .find(|v| v.get_account_id() == *id)
+                {
                     Some(c)
                 } else {
                     None
@@ -131,10 +139,21 @@ impl Eleccion {
     /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
     /// sea `Candidato` o `Votante`
     pub fn existe_usuario(&self, id: &AccountId) -> bool {
-        self.votantes_pendientes.iter().any(|vot| vot.id == *id)
-            || self.votantes_aprobados.iter().any(|vot| vot.id == *id)
-            || self.candidatos_pendientes.iter().any(|cand| cand.id == *id)
-            || self.candidatos_aprobados.iter().any(|cand| cand.id == *id)
+        self.votantes_pendientes
+            .iter()
+            .any(|vot| vot.get_account_id() == *id)
+            || self
+                .votantes_aprobados
+                .iter()
+                .any(|vot| vot.get_account_id() == *id)
+            || self
+                .candidatos_pendientes
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
+            || self
+                .candidatos_aprobados
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
     }
 
     /// Dado un `AccoundId` y `Rol`, aprueba al usuario. Retorna `Ok()` si se ha realizado
@@ -187,16 +206,27 @@ impl Eleccion {
     pub fn get_no_verificados(&self, rol: &Rol) -> Vec<AccountId> {
         match rol {
             Rol::Votante => self.votantes_pendientes.iter().map(|v| v.id).collect(),
-            Rol::Candidato => self.candidatos_pendientes.iter().map(|c| c.id).collect(),
+            Rol::Candidato => self
+                .candidatos_pendientes
+                .iter()
+                .map(|c| c.get_account_id())
+                .collect(),
         }
     }
 
-    // No se usa, evaluar si conviene borrarla
     /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
-    pub fn get_miembros(&self, rol: &Rol) -> Vec<AccountId> {
+    pub fn get_miembros(&self, rol: &Rol) -> Vec<&dyn Miembro> {
         match rol {
-            Rol::Candidato => self.candidatos_aprobados.iter().map(|c| c.id).collect(),
-            Rol::Votante => self.votantes_aprobados.iter().map(|v| v.id).collect(),
+            Rol::Candidato => self
+                .candidatos_aprobados
+                .iter()
+                .map(|c| c as &dyn Miembro)
+                .collect(),
+            Rol::Votante => self
+                .votantes_aprobados
+                .iter()
+                .map(|v| v as &dyn Miembro)
+                .collect(),
         }
     }
 
@@ -621,4 +651,3 @@ mod tests {
 }
 
 //cargo tarpaulin --target-dir src/coverage --skip-clean --exclude-files=target/debug/* --out html
-
