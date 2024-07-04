@@ -2,9 +2,11 @@
 
 #[ink::contract]
 mod reportes {
-    use ink::prelude::{string::String, vec::Vec};
+    use ink::prelude::vec::Vec;
+    use sistema_votacion::eleccion::Miembro;
     use sistema_votacion::enums::Error;
-    use sistema_votacion::usuario::Usuario;
+    use sistema_votacion::enums::EstadoDeEleccion;
+    use sistema_votacion::usuario::*;
     use sistema_votacion::SistemaVotacionRef;
 
     #[ink(storage)]
@@ -19,32 +21,72 @@ mod reportes {
         }
 
         #[ink(message)]
-        pub fn test(
-            &self,
-            nombre: String,
-            apellido: String,
-            dni: String,
-        ) -> Result<Usuario, Error> {
-            if nombre == *"error" {
-                Err(Error::VotacionNoExiste)
-            } else {
-                Ok(Usuario::new(nombre, apellido, dni))
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+            // no funciona el operador `?`, a veces anda a veces no.
+            // entonces a veces tuve que usar match a veces no, idk
+            // tampoco puedo implementar std::error::Error, sooo
+            match self.contrato_votacion.consultar_estado(id_eleccion) {
+                Ok(estado) => match estado {
+                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => (),
+                },
+                Err(e) => return Err(e),
             }
+
+            let votantes_aprobados = self.contrato_votacion.get_votantes_aprobados(id_eleccion)?;
+            Ok(votantes_aprobados
+                .iter()
+                .map(|v| {
+                    // Si nada nefasto está sucediendo, esto no debe fallar jamás
+                    match self.contrato_votacion.get_usuarios(v.get_account_id()) {
+                        Ok(opt) => opt,
+                        Err(e) => panic!("{:?}", e),
+                    }
+                })
+                .collect())
         }
 
         #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) {
-            todo!()
+        pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, u32), Error> {
+            match self.contrato_votacion.consultar_estado(id_eleccion) {
+                Ok(estado) => match estado {
+                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => (),
+                },
+                Err(e) => return Err(e),
+            }
+
+            let votantes = self.contrato_votacion.get_votantes_aprobados(id_eleccion)?;
+
+            let cantidad_de_votantes = votantes.len() as u32;
+            let cantidad_de_votantes_que_votaron =
+                votantes.iter().fold(0, |acc, v| acc + v.get_votos());
+
+            let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
+
+            Ok((cantidad_de_votantes, porcentaje))
         }
 
         #[ink(message)]
-        pub fn reporte_participacion(&self, id_eleccion: u32) {
-            todo!()
-        }
+        pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
+            match self.contrato_votacion.consultar_estado(id_eleccion) {
+                Ok(estado) => match estado {
+                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => (),
+                },
+                Err(e) => return Err(e),
+            }
 
-        #[ink(message)]
-        pub fn reporte_resultado(&self, id_eleccion: u32) {
-            todo!()
+            match self.contrato_votacion.get_candidatos(id_eleccion) {
+                Ok(mut v) => {
+                    v.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                    Ok(v)
+                }
+                Err(e) => Err(e),
+            }
         }
     }
 

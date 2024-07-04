@@ -34,6 +34,8 @@ pub enum Rol {
 /// Introduce comportamiento común entre miembros de elecciones
 pub trait Miembro {
     fn votar(&mut self) -> Result<(), Error>;
+    fn get_account_id(&self) -> AccountId;
+    fn get_votos(&self) -> u32;
 }
 
 impl Eleccion {
@@ -95,7 +97,10 @@ impl Eleccion {
     /// este no se encuentra.
     pub fn get_posicion_miembro_pendiente(&self, id: &AccountId, rol: &Rol) -> Option<usize> {
         match rol {
-            Rol::Candidato => self.candidatos_pendientes.iter().position(|c| &c.id == id),
+            Rol::Candidato => self
+                .candidatos_pendientes
+                .iter()
+                .position(|c| &c.get_account_id() == id),
             Rol::Votante => self.votantes_pendientes.iter().position(|c| &c.id == id),
         }
     }
@@ -111,7 +116,11 @@ impl Eleccion {
     ) -> Option<&mut dyn Miembro> {
         match rol {
             Rol::Candidato => {
-                if let Some(c) = self.candidatos_aprobados.iter_mut().find(|v| v.id == *id) {
+                if let Some(c) = self
+                    .candidatos_aprobados
+                    .iter_mut()
+                    .find(|v| v.get_account_id() == *id)
+                {
                     Some(c)
                 } else {
                     None
@@ -130,10 +139,21 @@ impl Eleccion {
     /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
     /// sea `Candidato` o `Votante`
     pub fn existe_usuario(&self, id: &AccountId) -> bool {
-        self.votantes_pendientes.iter().any(|vot| vot.id == *id)
-            || self.votantes_aprobados.iter().any(|vot| vot.id == *id)
-            || self.candidatos_pendientes.iter().any(|cand| cand.id == *id)
-            || self.candidatos_aprobados.iter().any(|cand| cand.id == *id)
+        self.votantes_pendientes
+            .iter()
+            .any(|vot| vot.get_account_id() == *id)
+            || self
+                .votantes_aprobados
+                .iter()
+                .any(|vot| vot.get_account_id() == *id)
+            || self
+                .candidatos_pendientes
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
+            || self
+                .candidatos_aprobados
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
     }
 
     /// Dado un `AccoundId` y `Rol`, aprueba al usuario. Retorna `Ok()` si se ha realizado
@@ -186,16 +206,27 @@ impl Eleccion {
     pub fn get_no_verificados(&self, rol: &Rol) -> Vec<AccountId> {
         match rol {
             Rol::Votante => self.votantes_pendientes.iter().map(|v| v.id).collect(),
-            Rol::Candidato => self.candidatos_pendientes.iter().map(|c| c.id).collect(),
+            Rol::Candidato => self
+                .candidatos_pendientes
+                .iter()
+                .map(|c| c.get_account_id())
+                .collect(),
         }
     }
 
-    // No se usa, evaluar si conviene borrarla
     /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
-    pub fn get_miembros(&self, rol: &Rol) -> Vec<AccountId> {
+    pub fn get_miembros(&self, rol: &Rol) -> Vec<&dyn Miembro> {
         match rol {
-            Rol::Candidato => self.candidatos_aprobados.iter().map(|c| c.id).collect(),
-            Rol::Votante => self.votantes_aprobados.iter().map(|v| v.id).collect(),
+            Rol::Candidato => self
+                .candidatos_aprobados
+                .iter()
+                .map(|c| c as &dyn Miembro)
+                .collect(),
+            Rol::Votante => self
+                .votantes_aprobados
+                .iter()
+                .map(|v| v as &dyn Miembro)
+                .collect(),
         }
     }
 
@@ -277,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_añadir_miembro_1(){
+    fn test_añadir_miembro_1() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -286,18 +317,20 @@ mod tests {
         let mut eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
         // Testeo
         let miembro_id: [u8; 32] = [0; 32];
-        eleccion.añadir_miembro(AccountId::from(miembro_id), Rol::Candidato, 0).unwrap();
+        eleccion
+            .añadir_miembro(AccountId::from(miembro_id), Rol::Candidato, 0)
+            .unwrap();
         assert!(eleccion.existe_usuario(&AccountId::from(miembro_id)));
-
 
         let miembro_id: [u8; 32] = [255; 32];
-        eleccion.añadir_miembro(AccountId::from(miembro_id), Rol::Votante, 0).unwrap();
+        eleccion
+            .añadir_miembro(AccountId::from(miembro_id), Rol::Votante, 0)
+            .unwrap();
         assert!(eleccion.existe_usuario(&AccountId::from(miembro_id)));
-                    
     }
 
     #[test]
-    fn test_añadir_miembro_2(){
+    fn test_añadir_miembro_2() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -306,22 +339,27 @@ mod tests {
         let mut eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
         // Testeo
         let miembro_id: [u8; 32] = [0; 32];
-        let result = eleccion.añadir_miembro(AccountId::from(miembro_id), Rol::Candidato, 63200000);
+        let result =
+            eleccion.añadir_miembro(AccountId::from(miembro_id), Rol::Candidato, 63200000);
         match result {
             Ok(_) => (),
-            Err(error) => assert_eq!(error,Error::VotacionNoIniciada), 
+            Err(error) => assert_eq!(error, Error::VotacionNoIniciada),
         }
-        
+
         let miembro_id: [u8; 32] = [255; 32];
-        let result = eleccion.añadir_miembro(AccountId::from(miembro_id), Rol::Candidato, 648726342763200000);
+        let result = eleccion.añadir_miembro(
+            AccountId::from(miembro_id),
+            Rol::Candidato,
+            648726342763200000,
+        );
         match result {
             Ok(_) => (),
-            Err(error) => assert_eq!(error,Error::VotacionFinalizada), 
-        }               
+            Err(error) => assert_eq!(error, Error::VotacionFinalizada),
+        }
     }
 
     #[test]
-    fn test_pos_miembro_pendiente(){
+    fn test_pos_miembro_pendiente() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -334,7 +372,7 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         let res = eleccion.get_posicion_miembro_pendiente(&m_id, &Rol::Candidato);
         match res {
-            Some(pos) => assert_eq!(pos,0 as usize),
+            Some(pos) => assert_eq!(pos, 0 as usize),
             None => (),
         }
 
@@ -343,14 +381,13 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         let res = eleccion.get_posicion_miembro_pendiente(&m_id, &Rol::Votante);
         match res {
-            Some(pos) => assert_eq!(pos,0 as usize),
+            Some(pos) => assert_eq!(pos, 0 as usize),
             None => (),
         }
-                           
     }
 
     #[test]
-    fn test_aprobacion_de_miembros(){
+    fn test_aprobacion_de_miembros() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -362,17 +399,21 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
-        assert!(eleccion.buscar_miembro_aprobado(&m_id, &Rol::Candidato).is_some());
+        assert!(eleccion
+            .buscar_miembro_aprobado(&m_id, &Rol::Candidato)
+            .is_some());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Votante).unwrap();
-        assert!(eleccion.buscar_miembro_aprobado(&m_id, &Rol::Votante).is_some());              
+        assert!(eleccion
+            .buscar_miembro_aprobado(&m_id, &Rol::Votante)
+            .is_some());
     }
 
     #[test]
-    fn test_aprobacion_de_miembros_2(){
+    fn test_aprobacion_de_miembros_2() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -383,7 +424,9 @@ mod tests {
         let miembro_id: [u8; 32] = [0; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
-        assert!(eleccion.buscar_miembro_aprobado(&m_id, &Rol::Candidato).is_none());
+        assert!(eleccion
+            .buscar_miembro_aprobado(&m_id, &Rol::Candidato)
+            .is_none());
 
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
         assert!(eleccion.existe_usuario(&m_id));
@@ -391,11 +434,13 @@ mod tests {
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
-        assert!(eleccion.buscar_miembro_aprobado(&m_id, &Rol::Votante).is_none());              
+        assert!(eleccion
+            .buscar_miembro_aprobado(&m_id, &Rol::Votante)
+            .is_none());
     }
 
     #[test]
-    fn test_aprobacion_de_miembros_3(){
+    fn test_aprobacion_de_miembros_3() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -409,11 +454,11 @@ mod tests {
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
-        assert!(eleccion.aprobar_miembro(&m_id, &Rol::Votante).is_err());              
+        assert!(eleccion.aprobar_miembro(&m_id, &Rol::Votante).is_err());
     }
 
     #[test]
-    fn test_rechazar_miembros(){
+    fn test_rechazar_miembros() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -426,15 +471,14 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         assert!(eleccion.rechazar_miembro(&m_id, &Rol::Candidato).is_ok());
 
-
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
-        assert!(eleccion.rechazar_miembro(&m_id, &Rol::Votante).is_ok());        
+        assert!(eleccion.rechazar_miembro(&m_id, &Rol::Votante).is_ok());
     }
 
     #[test]
-    fn test_rechazar_miembros_2(){
+    fn test_rechazar_miembros_2() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -446,14 +490,13 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         assert!(eleccion.rechazar_miembro(&m_id, &Rol::Candidato).is_err());
 
-
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
-        assert!(eleccion.rechazar_miembro(&m_id, &Rol::Votante).is_err());        
+        assert!(eleccion.rechazar_miembro(&m_id, &Rol::Votante).is_err());
     }
 
     #[test]
-    fn test_obtener_no_verificados(){
+    fn test_obtener_no_verificados() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -465,17 +508,17 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         let arr_can = eleccion.get_no_verificados(&Rol::Candidato);
-        assert_eq!(arr_can.is_empty(),false);
+        assert!(!arr_can.is_empty());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         let arr_vot = eleccion.get_no_verificados(&Rol::Votante);
-        assert_eq!(arr_vot.is_empty(),false);          
+        assert!(!arr_vot.is_empty());
     }
 
     #[test]
-    fn test_obtener_miembros_aprobados(){
+    fn test_obtener_miembros_aprobados() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -488,19 +531,18 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
         let arr_can = eleccion.get_miembros(&Rol::Candidato);
-        assert_eq!(arr_can.is_empty(),false);
-
+        assert!(!arr_can.is_empty());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Votante).unwrap();
         let arr_vot = eleccion.get_miembros(&Rol::Votante);
-        assert_eq!(arr_vot.is_empty(),false);         
+        assert!(!arr_vot.is_empty());
     }
 
     #[test]
-    fn test_votar(){
+    fn test_votar() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -512,7 +554,6 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
-
 
         let miembro_id2: [u8; 32] = [255; 32];
         let m_id2 = AccountId::from(miembro_id2);
@@ -520,10 +561,19 @@ mod tests {
         eleccion.aprobar_miembro(&m_id2, &Rol::Votante).unwrap();
 
         assert!(eleccion.votar(m_id2, m_id, 1716163200000).is_ok());
+        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 1);
+
+        let miembro_id3: [u8; 32] = [1; 32];
+        let m_id3 = AccountId::from(miembro_id3);
+        eleccion.añadir_miembro(m_id3, Rol::Votante, 0).unwrap();
+        eleccion.aprobar_miembro(&m_id3, &Rol::Votante).unwrap();
+
+        assert!(eleccion.votar(m_id3, m_id, 1716163200000).is_ok());
+        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 2);
     }
 
     #[test]
-    fn test_votar_2(){
+    fn test_votar_2() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -535,7 +585,6 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
-
 
         let miembro_id2: [u8; 32] = [255; 32];
         let m_id2 = AccountId::from(miembro_id2);
@@ -546,7 +595,7 @@ mod tests {
     }
 
     #[test]
-    fn test_votar_3(){
+    fn test_votar_3() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -558,7 +607,6 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
-
 
         let miembro_id2: [u8; 32] = [255; 32];
         let m_id2 = AccountId::from(miembro_id2);
@@ -569,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn test_votar_4(){
+    fn test_votar_4() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -581,7 +629,6 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
 
-
         let miembro_id2: [u8; 32] = [255; 32];
         let m_id2 = AccountId::from(miembro_id2);
         eleccion.añadir_miembro(m_id2, Rol::Votante, 0).unwrap();
@@ -591,7 +638,7 @@ mod tests {
     }
 
     #[test]
-    fn test_votar_5(){
+    fn test_votar_5() {
         // Creacion
         let id = 1;
         let puesto = "Presidente".to_string();
@@ -607,10 +654,9 @@ mod tests {
         let miembro_id2: [u8; 32] = [255; 32];
         let m_id2 = AccountId::from(miembro_id2);
         eleccion.añadir_miembro(m_id2, Rol::Votante, 0).unwrap();
-        
 
         assert!(eleccion.votar(m_id2, m_id, 1716163200000).is_err());
-    }                       
+    }
 }
 
 //cargo tarpaulin --target-dir src/coverage --skip-clean --exclude-files=target/debug/* --out html
