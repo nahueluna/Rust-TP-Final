@@ -223,6 +223,7 @@ mod sistema_votacion {
             }
         }
 
+        /// REPORTES
         /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
@@ -344,31 +345,39 @@ mod sistema_votacion {
             }
         }
 
+        /// REPORTES
         /// Retorna `Result<T, E>` con vector de `Votante` o `Error` en caso
-        /// de que la votacion no exista
+        /// de que la votacion no exista o que quien le invoca no sea el
+        ///contrato de reportes
         #[ink(message)]
         pub fn get_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<Votante>, Error> {
-            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
-                Ok(eleccion.votantes_aprobados)
+            if self.es_contrato_reportes() {
+                if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                    Ok(eleccion.votantes_aprobados)
+                } else {
+                    Err(Error::VotacionNoExiste)
+                }
             } else {
-                Err(Error::VotacionNoExiste)
+                Err(Error::PermisosInsuficientes)
             }
         }
 
+        /// REPORTES
         // Obtener un usuario cuyo AccountId es `account_id`
         // Devuelve `Err(Error::PermisosInsuficientes)` si el invocante no
         // es el contrato de reportes
-        // Devuelve `Ok(None)` si no esta establecido el contrato de reportes
+        // Devuelve Error::UsuarioNoExistente si no existe el usuario
+        // de AccountId `account_id`
         #[ink(message)]
-        pub fn get_usuarios(&self, account_id: AccountId) -> Result<Option<Usuario>, Error> {
-            if let Some(reportes_id) = self.contrato_reportes {
-                if self.env().caller() == reportes_id {
-                    Ok(self.usuarios.get(account_id).clone())
+        pub fn get_usuarios(&self, account_id: AccountId) -> Result<Usuario, Error> {
+            if self.es_contrato_reportes() {
+                if let Some(id) = self.usuarios.get(account_id) {
+                    Ok(id)
                 } else {
-                    Err(Error::PermisosInsuficientes)
+                    Err(Error::UsuarioNoExistente)
                 }
             } else {
-                Ok(None)
+                Err(Error::PermisosInsuficientes)
             }
         }
 
@@ -1188,7 +1197,9 @@ mod sistema_votacion {
                 .unwrap();
 
             // establecer con fines de pruebas el id del contrato reportes igual al administrador
-            env.contract.delegar_contrato_reportes(env.contract_id).unwrap();
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
 
             // Intento pedir los candidatos de una eleccion que no existe
             assert_eq!(
@@ -1321,6 +1332,141 @@ mod sistema_votacion {
             );
 
             // Los otros casos de consultar_estado() ya fueron cubiertos en los tests anteriores
+        }
+
+        #[ink::test]
+        fn probar_votar() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    0,
+                    2,
+                    1,
+                    1970,
+                    0,
+                    0,
+                    3,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Alice se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Bob se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .is_ok());
+
+            // Charlie se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .is_ok());
+
+            // Django se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert!(env
+                .contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .is_ok());
+
+            // Admin apruba a todos
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.alice,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.bob,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.charlie,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.django,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+
+            // No se puede votar antes de que comience la elección
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract
+                    .votar(eleccion_id, env.accounts.alice)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoIniciada {}.to_string()
+            );
+
+            // Establecer el tiempo para que la eleccion este en curso
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(115205000);
+
+            // Charlie vota a Alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            env.contract.votar(eleccion_id, env.accounts.alice).unwrap();
+
+            // Django vota a Alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert!(env.contract.votar(eleccion_id, env.accounts.alice).is_ok());
+
+            // Django ya votó, no puede volver a votar
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract
+                    .votar(eleccion_id, env.accounts.alice)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotanteYaVoto {}.to_string()
+            );
+
+            // Establecer el tiempo para que la eleccion haya finalizado
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(99999999999);
+
+            // verificar votos
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
+            let c = env.contract.get_candidatos(eleccion_id).unwrap();
+            assert_eq!(c[0].0, 2);
+            assert_eq!(c[1].0, 0);
         }
     }
 }
