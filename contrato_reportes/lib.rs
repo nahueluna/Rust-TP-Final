@@ -40,7 +40,7 @@ mod reportes {
                 .map(|v| {
                     // Si nada nefasto está sucediendo, esto no debe fallar jamás
                     match self.contrato_votacion.get_usuarios(v.get_account_id()) {
-                        Ok(opt) => opt.unwrap(),
+                        Ok(opt) => opt,
                         Err(e) => panic!("{:?}", e),
                     }
                 })
@@ -84,7 +84,7 @@ mod reportes {
                 Ok(mut v) => {
                     v.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
                     Ok(v)
-                },
+                }
                 Err(e) => Err(e),
             }
         }
