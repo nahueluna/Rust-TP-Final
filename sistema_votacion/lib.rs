@@ -269,6 +269,16 @@ mod sistema_votacion {
             }
         }
 
+        /// Retorna el tiempo actual del bloque.
+        /// Devuelve `Error::PermisosInsuficientes` si no es llamado por el admin.
+        #[ink(message)]
+        pub fn get_block_timestamp(&self) -> Result<u64, Error> {
+            match self.es_admin() {
+                true => Ok(self.env().block_timestamp()),
+                false => Err(Error::PermisosInsuficientes),
+            }
+        }
+
         /// Le permite a un registrado en el sistema votar por un candidato
         /// `id_candidato` en una elección `id_votacion`, solo si el usuario
         /// invocante está aprobado en la misma.
