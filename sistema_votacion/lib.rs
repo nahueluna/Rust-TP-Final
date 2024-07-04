@@ -223,6 +223,7 @@ mod sistema_votacion {
             }
         }
 
+        /// REPORTES
         /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
@@ -334,31 +335,39 @@ mod sistema_votacion {
             }
         }
 
+        /// REPORTES
         /// Retorna `Result<T, E>` con vector de `Votante` o `Error` en caso
-        /// de que la votacion no exista
+        /// de que la votacion no exista o que quien le invoca no sea el
+        ///contrato de reportes
         #[ink(message)]
         pub fn get_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<Votante>, Error> {
-            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
-                Ok(eleccion.votantes_aprobados)
+            if self.es_contrato_reportes() {
+                if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                    Ok(eleccion.votantes_aprobados)
+                } else {
+                    Err(Error::VotacionNoExiste)
+                }
             } else {
-                Err(Error::VotacionNoExiste)
+                Err(Error::PermisosInsuficientes)
             }
         }
 
+        /// REPORTES
         // Obtener un usuario cuyo AccountId es `account_id`
         // Devuelve `Err(Error::PermisosInsuficientes)` si el invocante no
         // es el contrato de reportes
-        // Devuelve `Ok(None)` si no esta establecido el contrato de reportes
+        // Devuelve Error::UsuarioNoExistente si no existe el usuario
+        // de AccountId `account_id`
         #[ink(message)]
-        pub fn get_usuarios(&self, account_id: AccountId) -> Result<Option<Usuario>, Error> {
-            if let Some(reportes_id) = self.contrato_reportes {
-                if self.env().caller() == reportes_id {
-                    Ok(self.usuarios.get(account_id).clone())
+        pub fn get_usuarios(&self, account_id: AccountId) -> Result<Usuario, Error> {
+            if self.es_contrato_reportes() {
+                if let Some(id) = self.usuarios.get(account_id) {
+                    Ok(id)
                 } else {
-                    Err(Error::PermisosInsuficientes)
+                    Err(Error::UsuarioNoExistente)
                 }
             } else {
-                Ok(None)
+                Err(Error::PermisosInsuficientes)
             }
         }
 
@@ -1178,7 +1187,9 @@ mod sistema_votacion {
                 .unwrap();
 
             // establecer con fines de pruebas el id del contrato reportes igual al administrador
-            env.contract.delegar_contrato_reportes(env.contract_id).unwrap();
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
 
             // Intento pedir los candidatos de una eleccion que no existe
             assert_eq!(
