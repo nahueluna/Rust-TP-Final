@@ -2,7 +2,7 @@ use core::fmt::Display;
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Representa el estado de aprobacion de un usuario.
 ///
 /// Utilizado para decidir el estado de aprobación de un usuario
@@ -73,7 +73,7 @@ impl Display for Error {
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Estados que puede tener la eleccion según su fecha de inicio y cierre
 pub enum EstadoDeEleccion {
     Pendiente,

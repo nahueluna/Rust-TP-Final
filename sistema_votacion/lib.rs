@@ -391,6 +391,15 @@ mod sistema_votacion {
             self.contrato_reportes = Some(account_id);
             Ok(()) //exitoso
         }
+
+        #[ink(message)]
+        pub fn get_hash(&self) -> Hash {
+            self.env().own_code_hash().unwrap()
+        }
+
+        pub fn get_account_id(&self) -> AccountId {
+            self.env().account_id()
+        }
     }
 
     impl Default for SistemaVotacion {

@@ -26,6 +26,7 @@ pub(crate) struct Eleccion {
 
 /// Roles posibles de un usuario que se registra en el sistema
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
+#[derive(Debug, Clone)]
 pub enum Rol {
     Candidato,
     Votante,
