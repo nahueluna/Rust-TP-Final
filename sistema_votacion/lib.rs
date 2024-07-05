@@ -1204,6 +1204,12 @@ mod sistema_votacion {
             // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
+            // Intento pedir los candidatos antes de que inicie la eleccion
+            assert_eq!(
+                env.contract.get_candidatos(eleccion_id),
+                Err(Error::VotacionNoIniciada)
+            );
+            
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
@@ -1221,6 +1227,14 @@ mod sistema_votacion {
             env.contract
                 .registrar_en_eleccion(eleccion_id, Rol::Candidato)
                 .unwrap();
+
+            // Intento pedir los candidatos mientras la eleccion esta en curso
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(2770200000);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            assert_eq!(
+                env.contract.get_candidatos(eleccion_id),
+                Err(Error::VotacionEnCurso)
+            );
 
             // Intento pedir los candidatos de una eleccion sin candidatos aprobados
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -1322,6 +1336,142 @@ mod sistema_votacion {
             );
 
             // Los otros casos de consultar_estado() ya fueron cubiertos en los tests anteriores
+        }
+
+        #[ink::test]
+        fn probar_votar() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    1,
+                    2,
+                    2,
+                    1970,
+                    0,
+                    2,
+                    2,
+                    2,
+                    1970,
+                )
+                .unwrap();
+
+            // establecer con fines de pruebas el id del contrato reportes igual al administrador
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
+
+            // Intento votar en una eleccion que no existe
+            assert_eq!(
+                env.contract.votar(u32::MAX,env.accounts.bob),
+                Err(Error::VotacionNoExiste)
+            );
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+            
+            // Alice se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
+
+            // Bob se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
+
+            // Charlie se registra en la elección como `Rol::Candidato`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
+
+            // Django se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Admin aprueba a Alice como Candidato
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.alice,
+                    Rol::Candidato,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+
+            // Admin rechaza a Bob como Candidato
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.bob,
+                    Rol::Candidato,
+                    EstadoAprobacion::Rechazado,
+                )
+                .unwrap();
+
+            // Admin aprueba a Django como Votante
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.django,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para votar, 02/02/1970 00:11hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(2768460000);
+
+            // Intento votar en una eleccion con un votante invalido
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.frank);
+            assert_eq!(
+                env.contract.votar(eleccion_id,env.accounts.alice),
+                Err(Error::VotanteNoExistente)
+            );
+
+            // Intento votar a un candidato invalido en una eleccion 
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract.votar(eleccion_id,env.accounts.frank),
+                Err(Error::CandidatoNoExistente)
+            );
+
+            // Django vota a Alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            env.contract.votar(eleccion_id, env.accounts.alice).unwrap();
+
+            // Django intenta volver a votar a Alice
+            assert_eq!(
+                env.contract.votar(eleccion_id,env.accounts.alice),
+                Err(Error::VotanteYaVoto)
+            );
+
+            // Establecer el tiempo del bloque en uno en que la elección haya finalizado
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(9999999999);
+
+            // Pido los candidatos aprobados
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
+            let alice = env.accounts.alice;
+            let charlie = env.accounts.charlie;
+            // La candidata debe ser Alice ya que es la unica aprobada
+            let response = vec![
+                (1, env.contract.usuarios.get(alice).unwrap()),
+            ];
+            assert_eq!(candidatos, response);
         }
     }
 }
