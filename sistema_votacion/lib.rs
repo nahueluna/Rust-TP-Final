@@ -385,10 +385,7 @@ mod sistema_votacion {
         /// a una serie de métodos que obtienen información de una elección
         #[ink(message)]
         pub fn delegar_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
-            if !self.es_admin()
-                && ink::env::is_contract::<ink::env::DefaultEnvironment>(&account_id)
-                && self.admin != account_id
-            {
+            if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
             self.contrato_reportes = Some(account_id);
