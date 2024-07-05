@@ -18,7 +18,9 @@ sistema_votacion = { path = "../sistema_votacion", default-features = false, fea
 ] }
 
 [dev-dependencies]
+chrono = "0.4.38"
 ink_e2e = { version = "5.0.0" }
+scale-info = "2.11.3"
 
 [lib]
 path = "lib.rs"
