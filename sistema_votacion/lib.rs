@@ -1466,12 +1466,32 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
             let alice = env.accounts.alice;
-            let charlie = env.accounts.charlie;
             // La candidata debe ser Alice ya que es la unica aprobada
             let response = vec![
                 (1, env.contract.usuarios.get(alice).unwrap()),
             ];
             assert_eq!(candidatos, response);
+        }
+
+        #[ink::test]
+        fn probar_es_contrato_reportes() {
+            // Inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+
+            // Probar el valor por defecto de contrato_reportes
+            assert_eq!(env.contract.es_contrato_reportes(),false);
+
+            // Cambio el AccountId de contrato_reportes
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract.admin);
+            env.contract.delegar_contrato_reportes(env.accounts.bob).unwrap();
+
+            // Llamo al metodo con Alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert_eq!(env.contract.es_contrato_reportes(),false);
+            
+            // Llamo al metodo con bob
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            assert_eq!(env.contract.es_contrato_reportes(),true);
         }
     }
 }
