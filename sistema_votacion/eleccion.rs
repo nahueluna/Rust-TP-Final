@@ -214,22 +214,6 @@ impl Eleccion {
         }
     }
 
-    /// Retorna una lista de votantes o candidatos aprobados. Si no los hay retorna la lista vacía.
-    pub fn get_miembros(&self, rol: &Rol) -> Vec<&dyn Miembro> {
-        match rol {
-            Rol::Candidato => self
-                .candidatos_aprobados
-                .iter()
-                .map(|c| c as &dyn Miembro)
-                .collect(),
-            Rol::Votante => self
-                .votantes_aprobados
-                .iter()
-                .map(|v| v as &dyn Miembro)
-                .collect(),
-        }
-    }
-
     /// Permite que el votante `id_votante` vote al candidato `id_cantidato`.
     /// Una vez que esto ocurre, el votante no puede volver a votar
     pub fn votar(
@@ -530,15 +514,13 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
-        let arr_can = eleccion.get_miembros(&Rol::Candidato);
-        assert!(!arr_can.is_empty());
+        assert!(!eleccion.candidatos_aprobados.is_empty());
 
         let miembro_id: [u8; 32] = [255; 32];
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         eleccion.aprobar_miembro(&m_id, &Rol::Votante).unwrap();
-        let arr_vot = eleccion.get_miembros(&Rol::Votante);
-        assert!(!arr_vot.is_empty());
+        assert!(!eleccion.votantes_aprobados.is_empty());
     }
 
     #[test]
@@ -561,7 +543,7 @@ mod tests {
         eleccion.aprobar_miembro(&m_id2, &Rol::Votante).unwrap();
 
         assert!(eleccion.votar(m_id2, m_id, 1716163200000).is_ok());
-        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 1);
+        assert_eq!(eleccion.candidatos_aprobados[0].get_votos(), 1);
 
         let miembro_id3: [u8; 32] = [1; 32];
         let m_id3 = AccountId::from(miembro_id3);
@@ -569,7 +551,7 @@ mod tests {
         eleccion.aprobar_miembro(&m_id3, &Rol::Votante).unwrap();
 
         assert!(eleccion.votar(m_id3, m_id, 1716163200000).is_ok());
-        assert_eq!(eleccion.get_miembros(&Rol::Candidato)[0].get_votos(), 2);
+        assert_eq!(eleccion.candidatos_aprobados[0].get_votos(), 2);
     }
 
     #[test]
