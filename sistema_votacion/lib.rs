@@ -989,6 +989,102 @@ mod sistema_votacion {
         }
 
         #[ink::test]
+        fn probar_consultar_candidatos_disponibles() {
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    0,
+                    2,
+                    2,
+                    1970,
+                    1,
+                    0,
+                    2,
+                    2,
+                    1970,
+                )
+                .unwrap();
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Como la elección no tiene miembros, retorna un vector vacío
+            assert_eq!(
+                env.contract
+                    .consultar_candidatos_disponibles(eleccion_id)
+                    .unwrap(),
+                vec![]
+            );
+
+            // Alice se registra como Candidato
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .unwrap();
+
+            // Bob se registra como Votante
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Alice no se ha aprobado, por lo que continua vacia. El admin posee permisos para el método
+            assert_eq!(
+                env.contract
+                    .consultar_candidatos_disponibles(eleccion_id)
+                    .unwrap(),
+                vec![]
+            );
+
+            // Se aprueba a Alice
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id, 
+                    env.accounts.alice, 
+                    Rol::Candidato, 
+                    EstadoAprobacion::Aprobado,
+                )
+            .is_ok());
+
+            // Se rechaza a Bob
+            assert!(env
+                .contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id, 
+                    env.accounts.bob, 
+                    Rol::Votante, 
+                    EstadoAprobacion::Rechazado,
+                )
+            .is_ok());
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            // Se verifica que el AccountId de Alice se encuentre en los candidatos disponibles (verifica la propia Alice)
+            assert_eq!(
+                env.contract
+                    .consultar_candidatos_disponibles(eleccion_id)
+                    .unwrap().first().unwrap().0,
+                env.accounts.alice
+            );
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            // Bob intenta ver los candidatos disponibles. No es posible porque fue rechazado de la elección
+            assert!(
+                env.contract
+                    .consultar_candidatos_disponibles(eleccion_id)
+                    .is_err()
+            );
+        }
+
+        #[ink::test]
         fn probar_estado_aprobacion() {
             // inicializar sistema con usuarios registrados
             let mut env = ContractEnv::new_inicializado();
