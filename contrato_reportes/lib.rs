@@ -7,6 +7,7 @@ mod reportes {
     use ink::prelude::format;
     use ink::prelude::string::String;
     use ink::prelude::vec::Vec;
+    use sistema_votacion::candidato::Candidato;
     use sistema_votacion::eleccion::Miembro;
     use sistema_votacion::enums::Error;
     use sistema_votacion::enums::EstadoDeEleccion;
@@ -147,22 +148,41 @@ mod reportes {
                 },
                 Err(e) => return Err(e),
             }
-            //self.contrato_votacion.get_candidatos(id_eleccion)
-            match build_call::<DefaultEnvironment>()
+
+            let candidatos = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
                     ExecutionInput::new(Selector::new(ink::selector_bytes!("get_candidatos")))
                         .push_arg(id_eleccion),
                 )
-                .returns::<Result<Vec<(u32, Usuario)>, Error>>()
-                .invoke()
-            {
-                Ok(mut v) => {
-                    v.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
-                    Ok(v)
-                }
-                Err(e) => Err(e),
-            }
+                .returns::<Result<Vec<Candidato>, Error>>()
+                .invoke()?;
+
+            let mut resultados = candidatos
+                .iter()
+                .map(|c| {
+                    // Si nada nefasto está sucediendo, esto no debe puede ser error jamás, por eso `unwrap`
+                    (
+                        c.get_votos(),
+                        // recupera info de cada candidato
+                        build_call::<DefaultEnvironment>()
+                            .call(self.votacion_account_id)
+                            .exec_input(
+                                ExecutionInput::new(Selector::new(ink::selector_bytes!(
+                                    "get_usuarios"
+                                )))
+                                .push_arg(c.get_account_id()),
+                            )
+                            .returns::<Result<Usuario, Error>>()
+                            .invoke()
+                            .unwrap(),
+                    )
+                })
+                .collect::<Vec<(u32, Usuario)>>();
+
+            resultados.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+
+            Ok(resultados)
         }
     }
 
