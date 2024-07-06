@@ -1,3 +1,5 @@
+use crate::enums::Error;
+
 /// Representa una marca de tiempo y su tiempo unix correspondiente
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
@@ -27,6 +29,21 @@ impl Fecha {
         dias[(mes - 1) as usize]
     }
 
+    fn es_fecha_valida(&self) -> bool {
+        match self {
+            fecha if fecha.mes >= 1 && fecha.mes <= 12 => {
+                if fecha.dia >= 1 && fecha.dia <= Fecha::dias_en_mes(fecha.año, fecha.mes) {
+                    if fecha.minuto < 60 && fecha.hora < 24 {
+                        return true;
+                    }
+                }
+                false
+            }
+                
+            _ => false,
+        }
+    }
+
     /// Determina cuantos dias pasaron desde el 1/1/1970 hasta la fecha recibida
     fn dias_desde_epoch(año: u16, mes: u8, dia: u8) -> u64 {
         let mut dias = 0;
@@ -50,7 +67,7 @@ impl Fecha {
 
         let tiempo_unix: u64 = (dias * 86400 + segundos) * 1000;
 
-        Fecha {
+        let f = Fecha {
             segundo,
             minuto,
             hora,
@@ -58,6 +75,11 @@ impl Fecha {
             mes,
             año,
             tiempo_unix,
+        };
+
+        match f.es_fecha_valida() {
+            true => f,
+            false => panic!("{}", Error::FechaInvalida),
         }
     }
 
