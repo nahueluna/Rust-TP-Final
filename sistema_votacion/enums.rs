@@ -23,6 +23,7 @@ pub enum Error {
     UsuarioNoPermitido,    // Intentar registrar administrador como usuario del sistema (futuro candidato o miembro)
     VotanteExistente,      // Intentar registrar un votante que ya existe.
     CandidatoExistente,    // Intentar registrar un candidato que ya existe.
+    MiembroExistente,      // Intentar registrar un miembro que ya existe.
     VotanteNoExistente,    // Intentar aprobar un votante que no existe.
     CandidatoNoExistente,  // Intentar aprobar un candidato que no existe.
     VotacionNoExiste,      // Intentar registrar un votante en una eleccion que no existe.
@@ -52,6 +53,7 @@ impl Display for Error {
             ),
             Error::VotanteExistente => write!(f, "El votante ya se encuentra registrado"),
             Error::CandidatoExistente => write!(f, "El candidato ya se encuentra registrado"),
+            Error::MiembroExistente => write!(f, "El miembro ya se encuentra registrado"),
             Error::VotanteNoExistente => {
                 write!(f, "El votante solicitado no se encuentra registrado")
             }

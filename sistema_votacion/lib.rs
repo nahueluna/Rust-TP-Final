@@ -79,8 +79,7 @@ mod sistema_votacion {
         /// Registra un votante o un candidato en una votacion determinada.
         ///
         /// Retorna `Error::UsuarioNoExistente` si el usuario no esta registrado.
-        /// Retorna `Error::VotanteExistente` si el votante ya existe.
-        /// Retorna `Error::CandidatoExistente` si el candidato ya existe.
+        /// Retorna `Error::MiembroExistente` si el usuario ya esta registrado en la votacion.
         /// Retorna `Error::VotacionNoExiste` si la votacion no existe.
         #[ink(message)]
         pub fn registrar_en_eleccion(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
@@ -92,10 +91,7 @@ mod sistema_votacion {
 
             if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
                 if votacion.existe_usuario(&id) {
-                    match rol {
-                        Rol::Candidato => Err(Error::CandidatoExistente),
-                        Rol::Votante => Err(Error::VotanteExistente),
-                    }
+                    Err(Error::MiembroExistente)
                 } else {
                     let r = votacion.añadir_miembro(id, rol, self.env().block_timestamp());
                     if r.is_ok() {
@@ -770,7 +766,7 @@ mod sistema_votacion {
                     .registrar_en_eleccion(eleccion_id, Rol::Candidato)
                     .unwrap_err()
                     .to_string(),
-                Error::CandidatoExistente.to_string()
+                Error::MiembroExistente.to_string()
             );
 
             // Charlie olvidó que ya se había registrado, e intenta volver a hacerlo
@@ -780,7 +776,7 @@ mod sistema_votacion {
                     .registrar_en_eleccion(eleccion_id, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
-                Error::VotanteExistente.to_string()
+                Error::MiembroExistente.to_string()
             );
         }
 
