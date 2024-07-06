@@ -5,7 +5,7 @@ use crate::enums::Error;
 
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Representa un votante en una eleccion determinada.
 /// Almacena su `AccountId` y si voto o no.
 pub struct Votante {
