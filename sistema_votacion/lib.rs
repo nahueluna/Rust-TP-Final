@@ -300,18 +300,22 @@ mod sistema_votacion {
             }
         }
 
-        /// Retorna `Result<T, E>` con vector de ids e informacion del usuario o `Error` en caso de que la votacion
-        /// no exista
+        /// Retorna `Result<T, E>` con vector de ids e informacion del usuario.
+        /// Si la votacion no existe devuelve `Error::VotacionNoExiste`.
+        /// Si el invocante no es el admin devuelve `Error::PermisosInsuficientes`.
         ///
         /// # Panics
         ///
         /// Produce panic si un votante de la elección
-        /// no se encuentra registrado en el sistema
+        /// no se encuentra registrado en el sistema.
         #[ink(message)]
         pub fn get_info_votantes_aprobados(
             &self,
             id_eleccion: u32,
         ) -> Result<Vec<(AccountId, Usuario)>, Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
             if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 let votantes = eleccion
                     .votantes_aprobados
