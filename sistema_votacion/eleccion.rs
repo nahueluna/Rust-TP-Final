@@ -202,15 +202,20 @@ impl Eleccion {
         }
     }
 
-    /// Retorna un `Vec<AccountId>` de los usuarios no verificados según el `Rol` dado.
+    /// Retorna un vector con `AccountId` de los usuarios no verificados según el `Rol` dado.
     pub fn get_no_verificados(&self, rol: &Rol) -> Vec<AccountId> {
         match rol {
-            Rol::Votante => self.votantes_pendientes.iter().map(|v| v.id).collect(),
+            Rol::Votante => self
+                            .votantes_pendientes
+                            .iter()
+                            .map(|v| (v.get_account_id()))
+                            .collect(),
+            
             Rol::Candidato => self
-                .candidatos_pendientes
-                .iter()
-                .map(|c| c.get_account_id())
-                .collect(),
+                            .candidatos_pendientes
+                            .iter()
+                            .map(|c| c.get_account_id())
+                            .collect(),
         }
     }
 
