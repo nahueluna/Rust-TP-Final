@@ -136,24 +136,20 @@ impl Eleccion {
         }
     }
 
-    /// Retorna si el usuario con `AccoundId` especificado existe en la eleccion,
+    /// Retorna `true` si el usuario con `AccoundId` especificado existe en la eleccion,
     /// sea `Candidato` o `Votante`
     pub fn existe_usuario(&self, id: &AccountId) -> bool {
-        self.votantes_pendientes
-            .iter()
-            .any(|vot| vot.get_account_id() == *id)
-            || self
-                .votantes_aprobados
-                .iter()
-                .any(|vot| vot.get_account_id() == *id)
-            || self
-                .candidatos_pendientes
-                .iter()
-                .any(|cand| cand.get_account_id() == *id)
-            || self
-                .candidatos_aprobados
-                .iter()
-                .any(|cand| cand.get_account_id() == *id)
+        self.votantes_pendientes.iter().any(|vot| vot.get_account_id() == *id)
+            || self.votantes_aprobados.iter().any(|vot| vot.get_account_id() == *id)
+            || self.candidatos_pendientes.iter().any(|cand| cand.get_account_id() == *id)
+            || self.candidatos_aprobados.iter().any(|cand| cand.get_account_id() == *id)
+    }
+
+    /// Retorna `true` si el usuario con `AccountId` especificado es un miembro
+    /// aprobado en la elección, sea `Candidato` o `Votante`
+    pub fn existe_miembro_aprobado(&self, id: &AccountId) -> bool {
+        self.votantes_aprobados.iter().any(|vot| vot.get_account_id() == *id)
+            || self.candidatos_aprobados.iter().any(|cand| cand.get_account_id() == *id)
     }
 
     /// Dado un `AccoundId` y `Rol`, aprueba al usuario. Retorna `Ok()` si se ha realizado
@@ -217,6 +213,11 @@ impl Eleccion {
                             .map(|c| c.get_account_id())
                             .collect(),
         }
+    }
+
+    /// Retorna un vector de `AccountId` de los candidatos aprobados.
+    pub fn get_candidatos_verificados(&self) -> Vec<AccountId> {
+        self.candidatos_aprobados.iter().map(|c| c.get_account_id()).collect()
     }
 
     /// Permite que el votante `id_votante` vote al candidato `id_cantidato`.
