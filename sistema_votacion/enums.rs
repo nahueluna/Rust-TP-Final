@@ -17,21 +17,22 @@ pub enum EstadoAprobacion {
 #[derive(Debug,PartialEq)]
 /// Representa un error al llamar a un metodo del sistema.
 pub enum Error {
-    PermisosInsuficientes, // Intentar acceder a un metodo del administrador sin serlo.
-    UsuarioExistente,      // Intentar registrar un usuario que ya existe.
-    UsuarioNoExistente,    // Intentar registrar como votante/candidato a un usuario que no existe.
-    UsuarioNoPermitido,    // Intentar registrar administrador como usuario del sistema (futuro candidato o miembro)
-    VotanteExistente,      // Intentar registrar un votante que ya existe.
-    CandidatoExistente,    // Intentar registrar un candidato que ya existe.
-    MiembroExistente,      // Intentar registrar un miembro que ya existe.
-    VotanteNoExistente,    // Intentar aprobar un votante que no existe.
-    CandidatoNoExistente,  // Intentar aprobar un candidato que no existe.
-    VotacionNoExiste,      // Intentar registrar un votante en una eleccion que no existe.
-    VotacionNoIniciada,    // Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
-    VotacionEnCurso,       // Intentar registrar a un miembro en una eleccion que ya inicio.
-    VotacionFinalizada,    // La votación finalizó, no es posible operar
-    VotanteYaVoto,         // El votante ya votó, no puede hacerlo dos veces
-    FechaInvalida,         // Se intenta crear una elección donde la fecha fin > inicio
+    PermisosInsuficientes,      // Intentar acceder a un metodo del administrador sin serlo.
+    UsuarioExistente,           // Intentar registrar un usuario que ya existe.
+    UsuarioNoExistente,         // Intentar registrar como votante/candidato a un usuario que no existe.
+    UsuarioNoPermitido,         // Intentar registrar administrador como usuario del sistema (futuro candidato o miembro)
+    VotanteExistente,           // Intentar registrar un votante que ya existe.
+    CandidatoExistente,         // Intentar registrar un candidato que ya existe.
+    MiembroExistente,           // Intentar registrar un miembro que ya existe.
+    VotanteNoExistente,         // Intentar aprobar un votante que no existe.
+    CandidatoNoExistente,       // Intentar aprobar un candidato que no existe.
+    VotacionNoExiste,           // Intentar registrar un votante en una eleccion que no existe.
+    VotacionNoIniciada,         // Intenta obtener los candidatos disponibles en una eleccion que no esta en curso
+    VotacionEnCurso,            // Intentar registrar a un miembro en una eleccion que ya inicio.
+    VotacionFinalizada,         // La votación finalizó, no es posible operar
+    VotanteYaVoto,              // El votante ya votó, no puede hacerlo dos veces
+    FechaFinalizacionInvalida,  // Se intenta crear una elección donde la fecha fin > inicio
+    FechaInvalida               // La fecha introducida no existe (no es valida)
 }
 
 impl Display for Error {
@@ -65,10 +66,11 @@ impl Display for Error {
             Error::VotacionEnCurso => write!(f, "La votación se encuentra en curso."),
             Error::VotacionFinalizada => write!(f, "La votación solicitada ya ha finalizado"),
             Error::VotanteYaVoto => write!(f, "El votante solicitado ya ha votado"),
-            Error::FechaInvalida => write!(
+            Error::FechaFinalizacionInvalida => write!(
                 f,
                 "La fecha de finalizacion ingresada no es consistente con la de inicio"
             ),
+            Error::FechaInvalida => write!(f, "La fecha ingresada no es valida"),
         }
     }
 }
