@@ -73,4 +73,15 @@ mod tests {
         assert!(votante.ha_votado);
         assert!(votante.votar().is_err());
     }
+
+    #[test]
+    fn probar_get_votos() {
+        // Creo un votante
+        let votante_id: [u8; 32] = [0; 32];
+        let mut votante = Votante::new(AccountId::from(votante_id));
+        
+        assert_eq!(votante.get_votos(),0); // Como no voto, get_votos() tiene que devolver 0 
+        votante.votar().unwrap();
+        assert_eq!(votante.get_votos(),1); // Como voto, get_votos() tiene que devolver 1 
+    }
 }
