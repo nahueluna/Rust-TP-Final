@@ -1,3 +1,4 @@
+use core::panic;
 use crate::enums::Error;
 
 /// Representa una marca de tiempo y su tiempo unix correspondiente
@@ -26,23 +27,25 @@ impl Fecha {
         if Fecha::es_bisiesto(año) {
             dias[1] += 1;
         }
-        dias[(mes - 1) as usize]
+        
+        match (1..=12).contains(&mes) {
+            true => dias[(mes - 1) as usize],
+            false => panic!("{}", Error::FechaInvalida),
+        } 
     }
 
     /// Determina si una fecha es válida
     fn es_fecha_valida(&self) -> bool {
-        match self {
-            fecha if fecha.mes >= 1 && fecha.mes <= 12 => {
-                if fecha.dia >= 1 && fecha.dia <= Fecha::dias_en_mes(fecha.año, fecha.mes) {
-                    if fecha.minuto < 60 && fecha.hora < 24 {
-                        return true;
-                    }
-                }
-                false
-            }
-                
-            _ => false,
-        }
+        match self.año >= 1970 &&
+              (1..=12).contains(&self.mes) &&
+              (1..=Fecha::dias_en_mes(self.año, self.mes)).contains(&self.dia) &&
+              (0..=23).contains(&self.hora) &&
+              (0..60).contains(&self.minuto) &&
+              (0..60).contains(&self.segundo) {
+            
+            true => true,
+            false => false,
+        } 
     }
 
     /// Determina cuantos dias pasaron desde el 1/1/1970 hasta la fecha recibida
@@ -114,12 +117,28 @@ mod tests {
         let fecha3 = Fecha::new(0, 1, 0, 1, 1, 1970);
         assert_eq!(fecha3.get_tiempo_unix(), 60_000);
 
-        // 31/02/2000 00:00:00; epoch 951955200seg
-        let fecha4 = Fecha::new(0, 0, 0, 31, 2, 2000);
-        assert_eq!(fecha4.get_tiempo_unix(), 951_955_200_000);
+        // 28/02/2000 00:00:00; epoch 951696000seg 
+        let fecha4 = Fecha::new(0, 0, 0, 28, 2, 2000);
+        assert_eq!(fecha4.get_tiempo_unix(), 951_696_000_000);
 
         // 01/06/2024 10:10:10; epoch 1717236610seg
         let fecha5 = Fecha::new(10, 10, 10, 1, 6, 2024);
         assert_eq!(fecha5.get_tiempo_unix(), 1_717_236_610_000);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_es_fecha_valida() {
+        // 30/02/2000 00:00:00 -> Invalida
+        let fecha1 = Fecha::new(0, 0, 0, 30, 2, 2000);
+        assert!(!fecha1.es_fecha_valida());
+
+        // 01/01/2000 00:99:99 -> Invalida
+        let fecha2 = Fecha::new(0, 99, 0, 1, 1, 2000);
+        assert!(!fecha2.es_fecha_valida());
+
+        // 01/01/2000 00:00:00 -> Valida
+        let fecha3 = Fecha::new(0, 0, 0, 1, 1, 2000);
+        assert!(fecha3.es_fecha_valida());
     }
 }
