@@ -1493,5 +1493,120 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             assert_eq!(env.contract.es_contrato_reportes(),true);
         }
+
+        #[ink::test]
+        fn probar_get_info_votantes_aprobados() {
+            // inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    0,
+                    1,
+                    2,
+                    2,
+                    1970,
+                    0,
+                    2,
+                    2,
+                    2,
+                    1970,
+                )
+                .unwrap();
+
+            // establecer con fines de pruebas el id del contrato reportes igual al administrador
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
+
+            // Intento llamar al metodo con una eleccion que no existe
+            assert_eq!(
+                env.contract.get_info_votantes_aprobados(u32::MAX),
+                Err(Error::VotacionNoExiste)
+            );
+
+            // Llamo al metodo con una eleccion sin votantes
+            assert!(env.contract.get_info_votantes_aprobados(eleccion_id).unwrap().is_empty());
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            // Alice se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            // Bob se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            // Charlie se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            // Django se registra en la elección como `Rol::Votante`
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            env.contract
+                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .unwrap();
+
+            // Django intenta llamar al metodo
+            assert_eq!(
+                env.contract.get_info_votantes_aprobados(u32::MAX),
+                Err(Error::PermisosInsuficientes)
+            );
+
+            // Admin aprueba a Alice como Votante
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.alice,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+
+            // Admin rechaza a Bob como Votante
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.bob,
+                    Rol::Votante,
+                    EstadoAprobacion::Rechazado,
+                )
+                .unwrap();
+
+            // Admin aprueba a Charlie como Votante
+            env.contract
+                .cambiar_estado_aprobacion(
+                    eleccion_id,
+                    env.accounts.charlie,
+                    Rol::Votante,
+                    EstadoAprobacion::Aprobado,
+                )
+                .unwrap();
+
+            // Llamo al metodo correctamente
+            let info_votantes = env.contract.get_info_votantes_aprobados(eleccion_id).unwrap();
+            let alice = env.accounts.alice;
+            let charlie = env.accounts.charlie;
+            // Los votantes deben ser Alice y Charlie ya que son los unicos aprobados
+            let response = vec![
+                (alice, env.contract.usuarios.get(alice).unwrap()),
+                (charlie, env.contract.usuarios.get(charlie).unwrap()),
+            ];
+            assert_eq!(info_votantes, response);
+        }
     }
 }
