@@ -1718,5 +1718,40 @@ mod sistema_votacion {
             let response = env.contract.elecciones.get(eleccion_id -1).unwrap().votantes_aprobados;
             assert_eq!(info_votantes, response);
         }
+
+        #[ink::test]
+        fn get_usuarios() {
+            // Inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Establecer con fines de pruebas el id del contrato reportes igual al administrador
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
+
+            // Intento llamar al metodo con un usuario que no existe
+            assert_eq!(
+                env.contract.get_usuarios(AccountId::from([9; 32])),
+                Err(Error::UsuarioNoExistente)
+            );
+
+            // Django intenta llamar al metodo
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract.get_usuarios(env.accounts.alice),
+                Err(Error::PermisosInsuficientes)
+            );
+
+            // Llamo al metodo correctamente
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            let alice_id = env.accounts.alice;
+            let alice = env.contract.usuarios.get(alice_id).unwrap();
+            assert_eq!(env.contract.get_usuarios(alice_id).unwrap(),alice);
+            let charlie_id = env.accounts.charlie;
+            let charlie = env.contract.usuarios.get(charlie_id).unwrap();
+            assert_eq!(env.contract.get_usuarios(charlie_id).unwrap(),charlie);
+        }
     }
 }
