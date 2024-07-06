@@ -530,6 +530,36 @@ mod tests {
     }
 
     #[test]
+    fn test_consultar_candidatos_verificados() {
+        // Creacion
+        let id = 1;
+        let puesto = "Presidente".to_string();
+        let fecha_inicio = Fecha::new(0, 0, 0, 20, 5, 2024); // 20/05/2024 00:00:00
+        let fecha_fin = Fecha::new(0, 0, 0, 21, 5, 2024); // 21/05/2024 00:00:00
+        let mut eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
+        
+        // Testeo
+        let miembro_id: [u8; 32] = [0; 32];
+        let m_id = AccountId::from(miembro_id);
+
+        // Antes de registrar miembro
+        assert!(!eleccion.existe_miembro_aprobado(&m_id));
+        assert!(eleccion.get_candidatos_verificados().first().is_none());
+
+        eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
+        
+        // Antes de aprobar miembro
+        assert!(!eleccion.existe_miembro_aprobado(&m_id));
+        assert!(eleccion.get_candidatos_verificados().first().is_none());
+        
+        eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
+
+        // Miembro registrado y aprobado
+        assert!(eleccion.existe_miembro_aprobado(&m_id));
+        assert_eq!(eleccion.get_candidatos_verificados().first().unwrap(), &m_id);
+    }
+
+    #[test]
     fn test_votar() {
         // Creacion
         let id = 1;
