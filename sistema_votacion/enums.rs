@@ -27,7 +27,7 @@ pub enum EstadoDeEleccion {
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug,PartialEq)]
 pub enum Error {
-    PermisosInsuficientes,      // Intentar acceder a un metodo del administrador sin serlo.
+    PermisosInsuficientes,      // Intentar acceder a un metodo que no le corresponde al usuario.
     UsuarioExistente,           // Intentar registrar un usuario que ya existe.
     UsuarioNoExistente,         // Intentar registrar como votante/candidato a un usuario que no existe.
     UsuarioNoPermitido,         // Intentar registrar administrador como usuario del sistema (futuro candidato o miembro)
@@ -50,7 +50,7 @@ impl Display for Error {
         match self {
             Error::PermisosInsuficientes => write!(
                 f,
-                "El usuario no posee los permisos de administracion requeridos"
+                "El usuario no posee los permisos requeridos"
             ),
             Error::UsuarioExistente => {
                 write!(f, "El usuario ya se encuentra registrado en el sistema")
