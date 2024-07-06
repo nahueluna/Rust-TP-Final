@@ -4,24 +4,21 @@ pub use self::sistema_votacion::SistemaVotacion;
 pub use self::sistema_votacion::SistemaVotacionRef;
 
 mod candidato;
+pub mod usuario;
+pub mod votante;
 pub mod eleccion;
 pub mod enums;
 mod fecha;
-pub mod usuario;
-pub mod votante;
 
 #[ink::contract]
 mod sistema_votacion {
-    use crate::eleccion::Eleccion;
-    use crate::eleccion::Miembro;
-    use crate::eleccion::Rol;
+    use crate::eleccion::{Eleccion, Miembro, Rol};
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use crate::votante::*;
     use ink::prelude::{string::String, vec::Vec};
-    use ink::storage::Mapping;
-    use ink::storage::StorageVec;
+    use ink::storage::{Mapping, StorageVec};
 
     /// Estructura principal del sistema. Consta del administrador electoral,
     /// una coleccion de elecciones y dos estructuras de usuarios: ID's de usuarios almacenados por DNI
@@ -110,13 +107,13 @@ mod sistema_votacion {
         pub fn crear_eleccion(
             &mut self,
             puesto: String,
-            minuto_inicio: u8,
             hora_inicio: u8,
+            minuto_inicio: u8,
             dia_inicio: u8,
             mes_inicio: u8,
             año_inicio: u16,
-            minuto_fin: u8,
             hora_fin: u8,
+            minuto_fin: u8,
             dia_fin: u8,
             mes_fin: u8,
             año_fin: u16,
@@ -135,7 +132,7 @@ mod sistema_votacion {
             let fin = Fecha::new(0, minuto_fin, hora_fin, dia_fin, mes_fin, año_fin);
 
             if inicio.get_tiempo_unix() > fin.get_tiempo_unix() {
-                return Err(Error::FechaInvalida);
+                return Err(Error::FechaFinalizacionInvalida);
             }
 
             let id: u32 = self.elecciones.len() + 1;
@@ -155,12 +152,17 @@ mod sistema_votacion {
             Ok(())
         }
 
-        /// Retorna un `Vec<AccountId` de votantes o candidatos, según se corresponda a `rol`, para una elección de id `id_elección`.
+        /// Retorna un vector con `AccountId` e informacion de votantes o candidatos, 
+        /// según el `Rol` especificado, para elección `id_elección`.
         ///
         /// Solo contendrá **usuarios registrados** que no han sido verificados por el administrador para esa
         /// elección. Éste método no verifica que el usuario exista en el sistema,
         /// esto ocurre cuando el usuario se registra como votante o candidato.
         /// Si el invocante no es administrador retorna `Error:PermisosInsuficientes`
+        /// 
+        /// # Panics
+        /// Produce panic si el usuario de la elección 
+        /// no existe en el sistema.
         #[ink(message)]
         pub fn get_no_verificados(
             &self,
@@ -176,7 +178,7 @@ mod sistema_votacion {
                 
                 let miembros = id_miembros.iter().map(|id| {
                     let Some(u) = self.usuarios.get(id) else {
-                        panic!("{:?}", Error::UsuarioNoExistente);
+                        panic!("{}", Error::UsuarioNoExistente);
                     };
 
                     (id.clone(), u.clone())
@@ -229,7 +231,7 @@ mod sistema_votacion {
             }
         }
 
-        /// REPORTES
+        /// # Reportes
         /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
@@ -329,7 +331,7 @@ mod sistema_votacion {
                     .iter()
                     .map(|v| {
                         let Some(u) = self.usuarios.get(v.id) else {
-                            panic!("{:?}", Error::UsuarioNoExistente);
+                            panic!("{}", Error::UsuarioNoExistente);
                         };
 
                         (v.id.clone(), u.clone())
@@ -342,7 +344,7 @@ mod sistema_votacion {
             }
         }
 
-        /// REPORTES
+        /// # Reportes
         /// Retorna `Result<T, E>` con vector de `Votante` o `Error` en caso
         /// de que la votacion no exista o que quien le invoca no sea el
         ///contrato de reportes
@@ -359,7 +361,7 @@ mod sistema_votacion {
             }
         }
 
-        /// REPORTES
+        /// # Reportes
         // Obtener un usuario cuyo AccountId es `account_id`
         // Devuelve `Err(Error::PermisosInsuficientes)` si el invocante no
         // es el contrato de reportes
@@ -674,7 +676,7 @@ mod sistema_votacion {
                     )
                     .unwrap_err()
                     .to_string(),
-                Error::FechaInvalida.to_string()
+                Error::FechaFinalizacionInvalida.to_string()
             );
 
             // Bob como invocante del contrato

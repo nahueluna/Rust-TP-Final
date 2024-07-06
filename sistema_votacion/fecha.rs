@@ -29,6 +29,7 @@ impl Fecha {
         dias[(mes - 1) as usize]
     }
 
+    /// Determina si una fecha es válida
     fn es_fecha_valida(&self) -> bool {
         match self {
             fecha if fecha.mes >= 1 && fecha.mes <= 12 => {
@@ -60,7 +61,11 @@ impl Fecha {
         dias
     }
 
-    /// Crea una instancia de Fecha
+    /// Crea una instancia de `Fecha`
+    /// 
+    /// # Panics
+    /// Produce panic si fecha 
+    /// no es válida.
     pub fn new(segundo: u8, minuto: u8, hora: u8, dia: u8, mes: u8, año: u16) -> Fecha {
         let dias = Fecha::dias_desde_epoch(año, mes, dia);
         let segundos = (hora as u64 * 3600) + (minuto as u64 * 60) + segundo as u64;

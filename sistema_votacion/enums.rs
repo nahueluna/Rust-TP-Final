@@ -1,21 +1,21 @@
 use core::fmt::Display;
 
-#[ink::scale_derive(Encode, Decode, TypeInfo)]
-#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, PartialEq)]
 /// Representa el estado de aprobacion de un usuario.
 ///
 /// Utilizado para decidir el estado de aprobación de un usuario
 /// en el proceso de cambio de estado
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+#[derive(Debug, PartialEq)]
 pub enum EstadoAprobacion {
     Aprobado,
     Rechazado,
 }
 
+/// Representa un error al llamar a un metodo del sistema.
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
 #[derive(Debug,PartialEq)]
-/// Representa un error al llamar a un metodo del sistema.
 pub enum Error {
     PermisosInsuficientes,      // Intentar acceder a un metodo del administrador sin serlo.
     UsuarioExistente,           // Intentar registrar un usuario que ya existe.
