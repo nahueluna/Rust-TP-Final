@@ -1610,7 +1610,7 @@ mod sistema_votacion {
         }
 
         #[ink::test]
-        fn get_votantes_aprobados() {
+        fn probar_get_votantes_aprobados() {
             // Inicializar sistema con usuarios registrados
             let mut env = ContractEnv::new_inicializado();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -1720,7 +1720,7 @@ mod sistema_votacion {
         }
 
         #[ink::test]
-        fn get_usuarios() {
+        fn probar_get_usuarios() {
             // Inicializar sistema con usuarios registrados
             let mut env = ContractEnv::new_inicializado();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -1752,6 +1752,26 @@ mod sistema_votacion {
             let charlie_id = env.accounts.charlie;
             let charlie = env.contract.usuarios.get(charlie_id).unwrap();
             assert_eq!(env.contract.get_usuarios(charlie_id).unwrap(),charlie);
+        }
+
+        #[ink::test]
+        fn probar_delegar_contrato_reportes() {
+            // Inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            
+            // Django intenta llamar al metodo
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
+            assert_eq!(
+                env.contract.delegar_contrato_reportes(env.accounts.alice),
+                Err(Error::PermisosInsuficientes)
+            );
+            
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            // Llamo al metodo correctamente
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
         }
     }
 }
