@@ -166,14 +166,14 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn consultar_miembros_no_verificados(
             &self,
-            id_elección: u32,
+            id_eleccion: u32,
             rol: Rol,
         ) -> Result<Vec<(AccountId, Usuario)>, Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
 
-            if let Some(eleccion) = self.elecciones.get(id_elección - 1) {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 let id_miembros = eleccion.get_no_verificados(&rol);
                 
                 let miembros = id_miembros.iter().map(|id| {
@@ -185,6 +185,41 @@ mod sistema_votacion {
                 }).collect();
 
                 Ok(miembros)
+            } else {
+                Err(Error::VotacionNoExiste)
+            }
+        }
+
+        /// Retorna un vector con el `AccountId`, nombre y apellido de los candidatos de
+        /// determinada elección que fueron aprobados.
+        /// 
+        /// Permite a cualquier miembro registrado y aprobado de una elección
+        /// conocer los candidatos disponibles.
+        /// 
+        /// # Panics
+        /// Produce panic si el candidato registrado en la eleccion no
+        /// se encuentra registrado en el sistema.
+        #[ink(message)]
+        pub fn consultar_candidatos_disponibles(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<(AccountId, String, String)>, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
+                if !self.es_admin() && !eleccion.existe_miembro_aprobado(&self.env().caller()) {
+                    return Err(Error::PermisosInsuficientes);
+                }
+                
+                let id_candidatos = eleccion.get_candidatos_verificados();
+
+                let candidatos = id_candidatos.iter().map(|id| {
+                    let Some(u) = self.usuarios.get(id) else {
+                        panic!("{}", Error::UsuarioNoExistente);
+                    };
+
+                    (id.clone(), u.nombre.clone(), u.apellido.clone()) 
+                }).collect();
+
+                Ok(candidatos)
             } else {
                 Err(Error::VotacionNoExiste)
             }
