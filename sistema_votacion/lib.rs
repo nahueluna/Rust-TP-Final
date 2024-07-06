@@ -164,7 +164,7 @@ mod sistema_votacion {
         /// Produce panic si el usuario de la elección 
         /// no existe en el sistema.
         #[ink(message)]
-        pub fn get_no_verificados(
+        pub fn consultar_miembros_no_verificados(
             &self,
             id_elección: u32,
             rol: Rol,
@@ -691,8 +691,8 @@ mod sistema_votacion {
                         1,
                         1,
                         1970,
-                        0,
                         1,
+                        0,
                         1,
                         1,
                         1970,
@@ -715,13 +715,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
-                    0,
                     2,
+                    0,
                     2,
                     2,
                     1970,
@@ -861,7 +861,7 @@ mod sistema_votacion {
         }
 
         #[ink::test]
-        fn probar_get_no_verificados() {
+        fn probar_consultar_miembros_no_verificados() {
             let mut env = ContractEnv::new_inicializado();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -876,8 +876,8 @@ mod sistema_votacion {
                     2,
                     2,
                     1970,
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
@@ -890,13 +890,13 @@ mod sistema_votacion {
             // Como la elección no tiene miembros, retorna un vector vacío
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
                     .unwrap(),
                 vec![]
             );
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
                     .unwrap(),
                 vec![]
             );
@@ -917,7 +917,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
                     .unwrap().first().unwrap().0,
                 env.accounts.alice
             );
@@ -926,7 +926,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
                     .unwrap().first().unwrap().0,
                 env.accounts.charlie
             );
@@ -936,7 +936,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes.to_string()
@@ -946,7 +946,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .get_no_verificados(u32::MAX, Rol::Votante)
+                    .consultar_miembros_no_verificados(u32::MAX, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionNoExiste.to_string()
@@ -965,13 +965,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     1,
                     1,
                     1970,
-                    0,
                     2,
+                    0,
                     1,
                     1,
                     1970,
@@ -1013,7 +1013,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
                     .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
                 vec![env.accounts.alice, env.accounts.bob]
             );
@@ -1021,7 +1021,7 @@ mod sistema_votacion {
             // Charlie y Django están pendientes de verificación como Votantes
             assert_eq!(
                 env.contract
-                    .get_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
                     .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
                 vec![env.accounts.charlie, env.accounts.django]
             );
@@ -1182,13 +1182,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
-                    0,
                     2,
+                    0,
                     2,
                     2,
                     1970,
@@ -1359,13 +1359,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
-                    0,
                     2,
+                    0,
                     2,
                     2,
                     1970,
@@ -1515,13 +1515,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
-                    0,
                     2,
+                    0,
                     2,
                     2,
                     1970,
@@ -1630,13 +1630,13 @@ mod sistema_votacion {
                 .contract
                 .crear_eleccion(
                     String::from("Presidente"),
-                    0,
                     1,
+                    0,
                     2,
                     2,
                     1970,
-                    0,
                     2,
+                    0,
                     2,
                     2,
                     1970,

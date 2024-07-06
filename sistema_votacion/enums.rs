@@ -12,6 +12,16 @@ pub enum EstadoAprobacion {
     Rechazado,
 }
 
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+#[derive(Debug, PartialEq)]
+/// Estados que puede tener la eleccion según su fecha de inicio y cierre
+pub enum EstadoDeEleccion {
+    Pendiente,
+    EnCurso,
+    Finalizada,
+}
+
 /// Representa un error al llamar a un metodo del sistema.
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
@@ -75,12 +85,3 @@ impl Display for Error {
     }
 }
 
-#[ink::scale_derive(Encode, Decode, TypeInfo)]
-#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, PartialEq)]
-/// Estados que puede tener la eleccion según su fecha de inicio y cierre
-pub enum EstadoDeEleccion {
-    Pendiente,
-    EnCurso,
-    Finalizada,
-}
