@@ -166,13 +166,23 @@ mod sistema_votacion {
             &self,
             id_elección: u32,
             rol: Rol,
-        ) -> Result<Vec<AccountId>, Error> {
+        ) -> Result<Vec<(AccountId, Usuario)>, Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_elección - 1) {
-                Ok(votacion.get_no_verificados(&rol))
+            if let Some(eleccion) = self.elecciones.get(id_elección - 1) {
+                let id_miembros = eleccion.get_no_verificados(&rol);
+                
+                let miembros = id_miembros.iter().map(|id| {
+                    let Some(u) = self.usuarios.get(id) else {
+                        panic!("{:?}", Error::UsuarioNoExistente);
+                    };
+
+                    (id.clone(), u.clone())
+                }).collect();
+
+                Ok(miembros)
             } else {
                 Err(Error::VotacionNoExiste)
             }
@@ -224,9 +234,6 @@ mod sistema_votacion {
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
         /// Verifica el estado de la elección y si el invocante es el contrato de reportes
-        /// # Panics
-        /// Produce panic si el candidato obtenido de la elección
-        /// no está registrado en el sistema
         #[ink(message)]
         pub fn get_candidatos(&self, id_votacion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
             if !self.es_contrato_reportes() {
@@ -322,7 +329,7 @@ mod sistema_votacion {
                     .iter()
                     .map(|v| {
                         let Some(u) = self.usuarios.get(v.id) else {
-                            panic!("Error: {}", Error::UsuarioNoExistente);
+                            panic!("{:?}", Error::UsuarioNoExistente);
                         };
 
                         (v.id.clone(), u.clone())
@@ -909,8 +916,8 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .get_no_verificados(eleccion_id, Rol::Candidato)
-                    .unwrap(),
-                vec![env.accounts.alice]
+                    .unwrap().first().unwrap().0,
+                env.accounts.alice
             );
 
             // El único votante no verificado es Charlie
@@ -918,8 +925,8 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .get_no_verificados(eleccion_id, Rol::Votante)
-                    .unwrap(),
-                vec![env.accounts.charlie]
+                    .unwrap().first().unwrap().0,
+                env.accounts.charlie
             );
 
             // Eve no puede obtener los miembros de una elección no verificados
@@ -1005,7 +1012,7 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .get_no_verificados(eleccion_id, Rol::Candidato)
-                    .unwrap(),
+                    .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
                 vec![env.accounts.alice, env.accounts.bob]
             );
 
@@ -1013,7 +1020,7 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .get_no_verificados(eleccion_id, Rol::Votante)
-                    .unwrap(),
+                    .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
                 vec![env.accounts.charlie, env.accounts.django]
             );
 
