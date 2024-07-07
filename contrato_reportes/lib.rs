@@ -37,6 +37,9 @@ mod reportes {
             }
         }
 
+        /// Retorna para una elección de id `id_eleccion` una colección con la
+        /// información de los votantes que están aprobados en esa elección,
+        /// solo cuando la elección esté finalizada. Si algo falla retorna un `Error`.
         #[ink(message)]
         pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
             // no funciona el operador `?`, a veces anda a veces no.
@@ -91,8 +94,14 @@ mod reportes {
                 .collect())
         }
 
+        /// El reporte de participación retorna para una elección de id `id_elección`
+        /// un `Result<(u32, u8), Error>`:
+        ///
+        /// - El primer campo es la cantidad de votantes
+        /// - El segundo campo es el porcentaje de participación, será siempre
+        /// un valor entre 0 y 100
         #[ink(message)]
-        pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, String), Error> {
+        pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
             match build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -127,9 +136,19 @@ mod reportes {
 
             let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
 
-            Ok((cantidad_de_votantes, format!("{}%", porcentaje)))
+            // es seguro hacer esta operación, es imposible que hayan más votantes que votaron que
+            // votantes inscriptos
+            Ok((cantidad_de_votantes, porcentaje.try_into().unwrap()))
         }
 
+        /// Reporta el resultado para un elección de id `id_elección`. Retorna un
+        /// `Result<Vec<(u32, Usuario)>, Error>`. Para cada elemento del arreglo:
+        ///
+        /// - El primer campo (`u32`) representa los votos del candidato, cuya información se
+        /// encuentra en el siguiente campo
+        /// - El segundo campo de tipo `Usuario` es la información del candidato.
+        ///
+        /// El arreglo se encuentra ordenado de manera descendente en cantidad de votos.
         #[ink(message)]
         pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
             match build_call::<DefaultEnvironment>()
@@ -718,7 +737,7 @@ mod reportes {
                 ]
             );
 
-            assert_eq!(reporte_participacion, (2, "100%".to_string()));
+            assert_eq!(reporte_participacion, (2, 100%));
 
             assert_eq!(
                 reporte_resultado,
