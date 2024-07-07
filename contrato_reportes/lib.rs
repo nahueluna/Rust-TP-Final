@@ -765,5 +765,116 @@ mod reportes {
 
             Ok(())
         }
+
+        #[ink_e2e::test]
+        async fn reportes_eleccion_vacia<Client: E2EBackend>(mut client: Client) -> E2EResult<()> {
+            // Deploy del contrato de votación
+            let mut constructor_votacion = SistemaVotacionRef::new();
+            let contrato_votacion = client
+                .instantiate(
+                    "sistema_votacion",
+                    &ink_e2e::alice(),
+                    &mut constructor_votacion,
+                )
+                .submit()
+                .await
+                .expect("Fallo la instanciación del contrato de votación");
+            let mut votacion_call_builder = contrato_votacion.call_builder::<SistemaVotacion>();
+            let votacion_acc_id = contrato_votacion.account_id;
+            let votacion_hash = client
+                .call(&ink_e2e::bob(), &votacion_call_builder.get_hash())
+                .submit()
+                .await?
+                .return_value();
+
+            // Deploy y construción del contrato de reportes
+            let mut constructor_reportes = ReportesRef::new(votacion_acc_id);
+            let contrato_reportes = client
+                .instantiate(
+                    "contrato_reportes",
+                    &ink_e2e::alice(),
+                    &mut constructor_reportes,
+                )
+                .submit()
+                .await
+                .expect("Fallo la instanciación del contrato de reportes");
+            let mut call_builder = contrato_reportes.call_builder::<Reportes>();
+
+            // Delegar el id de reportes en el contrato de votación
+            client
+                .call(
+                    &ink_e2e::alice(),
+                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                )
+                .submit()
+                .await?
+                .return_value()
+                .unwrap();
+
+            // Crear una elección finalizada y vacía
+            let inicio = Utc::now() - Duration::hours(24);
+            let fin = Utc::now() - Duration::hours(23);
+            let eleccion_id: u32 = client
+                .call(
+                    &ink_e2e::alice(),
+                    &votacion_call_builder.crear_eleccion(
+                        String::from("Presidente"),
+                        inicio.minute().try_into().unwrap(),
+                        inicio.hour().try_into().unwrap(),
+                        inicio.day().try_into().unwrap(),
+                        inicio.month().try_into().unwrap(),
+                        inicio.year().try_into().unwrap(),
+                        fin.minute().try_into().unwrap(),
+                        fin.hour().try_into().unwrap(),
+                        fin.day().try_into().unwrap(),
+                        fin.month().try_into().unwrap(),
+                        fin.year().try_into().unwrap(),
+                    ),
+                )
+                .submit()
+                .await?
+                .return_value()
+                .unwrap();
+
+            // Probar reportes en una elección vacía
+            assert_eq!(
+                client
+                    .call(
+                        &ink_e2e::alice(),
+                        &call_builder.reporte_votantes(eleccion_id),
+                    )
+                    .dry_run()
+                    .await?
+                    .return_value(),
+                Ok(vec![])
+            );
+
+            assert_eq!(
+                client
+                    .call(
+                        &ink_e2e::alice(),
+                        &call_builder.reporte_participacion(eleccion_id),
+                    )
+                    .dry_run()
+                    .await?
+                    .return_value(),
+                Ok((0, 0))
+            );
+
+            assert_eq!(
+                client
+                    .call(
+                        &ink_e2e::alice(),
+                        &call_builder.reporte_resultado(eleccion_id),
+                    )
+                    .dry_run()
+                    .await?
+                    .return_value(),
+                Ok(vec![])
+            );
+
+            Ok(())
+        }
+
     }
 }
