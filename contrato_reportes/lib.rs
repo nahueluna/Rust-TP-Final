@@ -23,6 +23,10 @@ mod reportes {
     impl Reportes {
         #[ink(constructor)]
         pub fn new(contrato_votacion_acc_id: AccountId) -> Self {
+            Self::new_interno(contrato_votacion_acc_id)
+        }
+
+        fn new_interno(contrato_votacion_acc_id: AccountId) -> Self {
             let votacion_hash = build_call::<DefaultEnvironment>()
                 .call(AccountId::from(contrato_votacion_acc_id))
                 .exec_input(ExecutionInput::new(Selector::new(ink::selector_bytes!(
@@ -37,11 +41,7 @@ mod reportes {
             }
         }
 
-        /// Retorna para una elección de id `id_eleccion` una colección con la
-        /// información de los votantes que están aprobados en esa elección,
-        /// solo cuando la elección esté finalizada. Si algo falla retorna un `Error`.
-        #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+        fn consultar_estado_eleccion(&self, id_eleccion: u32) -> Result<(), Error> {
             // no funciona el operador `?`, a veces anda a veces no.
             // entonces a veces tuve que usar match a veces no, idk
             // tampoco puedo implementar std::error::Error, sooo
@@ -55,13 +55,24 @@ mod reportes {
                 .invoke()
             {
                 Ok(estado) => match estado {
-                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
-                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
-                    EstadoDeEleccion::Finalizada => (),
+                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => Ok(()),
                 },
                 Err(e) => return Err(e),
             }
+        }
 
+        /// Retorna para una elección de id `id_eleccion` una colección con la
+        /// información de los votantes que están aprobados en esa elección,
+        /// solo cuando la elección esté finalizada. Si algo falla retorna un `Error`.
+        #[ink(message)]
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+            self.consultar_estado_eleccion(id_eleccion)?;
+            self.reporte_votantes_interno(id_eleccion)
+        }
+
+        pub fn reporte_votantes_interno(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
             let votantes_aprobados = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -102,23 +113,12 @@ mod reportes {
         /// un valor entre 0 y 100
         #[ink(message)]
         pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
-            match build_call::<DefaultEnvironment>()
-                .call(self.votacion_account_id)
-                .exec_input(
-                    ExecutionInput::new(Selector::new(ink::selector_bytes!("consultar_estado")))
-                        .push_arg(id_eleccion),
-                )
-                .returns::<Result<EstadoDeEleccion, Error>>()
-                .invoke()
-            {
-                Ok(estado) => match estado {
-                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
-                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
-                    EstadoDeEleccion::Finalizada => (),
-                },
-                Err(e) => return Err(e),
-            }
+            self.consultar_estado_eleccion(id_eleccion)?;
+            self.reporte_participacion_interno(id_eleccion)
+        }
 
+        #[ink(message)]
+        pub fn reporte_participacion_interno(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
             let votantes = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -157,23 +157,14 @@ mod reportes {
         /// El arreglo se encuentra ordenado de manera descendente en cantidad de votos.
         #[ink(message)]
         pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
-            match build_call::<DefaultEnvironment>()
-                .call(self.votacion_account_id)
-                .exec_input(
-                    ExecutionInput::new(Selector::new(ink::selector_bytes!("consultar_estado")))
-                        .push_arg(id_eleccion),
-                )
-                .returns::<Result<EstadoDeEleccion, Error>>()
-                .invoke()
-            {
-                Ok(estado) => match estado {
-                    EstadoDeEleccion::Pendiente => return Err(Error::VotacionNoIniciada),
-                    EstadoDeEleccion::EnCurso => return Err(Error::VotacionEnCurso),
-                    EstadoDeEleccion::Finalizada => (),
-                },
-                Err(e) => return Err(e),
-            }
+            self.consultar_estado_eleccion(id_eleccion)?;
+            self.reporte_resultado_interno(id_eleccion)
+        }
 
+        pub fn reporte_resultado_interno(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<(u32, Usuario)>, Error> {
             let candidatos = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -229,7 +220,7 @@ mod reportes {
         type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
         #[ink_e2e::test]
-        async fn probar_new<Client: E2EBackend>(mut client: Client) -> E2EResult<()> {
+        pub async fn probar_new<Client: E2EBackend>(mut client: Client) -> E2EResult<()> {
             // Deploy del contrato de votación
             let mut constructor_votacion = SistemaVotacionRef::new();
             let contrato_votacion = client
