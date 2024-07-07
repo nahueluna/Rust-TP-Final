@@ -134,10 +134,16 @@ mod reportes {
             let cantidad_de_votantes_que_votaron =
                 votantes.iter().fold(0, |acc, v| acc + v.get_votos());
 
+            // Atrapar error de división por cero
+            // Si no hay votantes, es seguro asumir que no hay votos
+            if cantidad_de_votantes == 0 {
+                return Ok((0, 0));
+            }
+
+            // Es seguro hacer esta operación en un `u8`. Es imposible que hayan más
+            // votantes que votaron que votantes inscriptos en una elección
             let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
 
-            // es seguro hacer esta operación, es imposible que hayan más votantes que votaron que
-            // votantes inscriptos
             Ok((cantidad_de_votantes, porcentaje.try_into().unwrap()))
         }
 
@@ -737,7 +743,7 @@ mod reportes {
                 ]
             );
 
-            assert_eq!(reporte_participacion, (2, 100%));
+            assert_eq!(reporte_participacion, (2, 100));
 
             assert_eq!(
                 reporte_resultado,
