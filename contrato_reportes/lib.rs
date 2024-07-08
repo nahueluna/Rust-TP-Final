@@ -66,13 +66,16 @@ mod reportes {
         /// Retorna para una elección de id `id_eleccion` una colección con la
         /// información de los votantes que están aprobados en esa elección,
         /// solo cuando la elección esté finalizada. Si algo falla retorna un `Error`.
+        ///
+        /// Si bien se consideran los miembros de una elección de carácter público, con
+        /// fines de preservar la información personal solo se muestra el nombre y apellido.
         #[ink(message)]
-        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+        pub fn reporte_votantes(&self, id_eleccion: u32) -> Result<Vec<String>, Error> {
             self.consultar_estado_eleccion(id_eleccion)?;
             self.reporte_votantes_interno(id_eleccion)
         }
 
-        fn reporte_votantes_interno(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+        fn reporte_votantes_interno(&self, id_eleccion: u32) -> Result<Vec<String>, Error> {
             let votantes_aprobados = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -83,6 +86,7 @@ mod reportes {
                 )
                 .returns::<Result<Vec<Votante>, Error>>()
                 .invoke()?;
+
             Ok(votantes_aprobados
                 .iter()
                 .map(|v| {
@@ -98,7 +102,7 @@ mod reportes {
                         .returns::<Result<Usuario, Error>>()
                         .invoke()
                     {
-                        Ok(opt) => opt,
+                        Ok(u) => format!("{} {}", u.nombre, u.apellido),
                         Err(e) => panic!("{:?}", e),
                     }
                 })
@@ -111,6 +115,9 @@ mod reportes {
         /// - El primer campo es la cantidad de votantes
         /// - El segundo campo es el porcentaje de participación, será siempre
         /// un valor entre 0 y 100
+        ///
+        /// Si bien los candidatos de una elección se consideran de carácter público, con
+        /// fines de preservar la información personal solo se muestra el nombre y apellido.
         #[ink(message)]
         pub fn reporte_participacion(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
             self.consultar_estado_eleccion(id_eleccion)?;
@@ -155,15 +162,12 @@ mod reportes {
         ///
         /// El arreglo se encuentra ordenado de manera descendente en cantidad de votos.
         #[ink(message)]
-        pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, Usuario)>, Error> {
+        pub fn reporte_resultado(&self, id_eleccion: u32) -> Result<Vec<(u32, String)>, Error> {
             self.consultar_estado_eleccion(id_eleccion)?;
             self.reporte_resultado_interno(id_eleccion)
         }
 
-        fn reporte_resultado_interno(
-            &self,
-            id_eleccion: u32,
-        ) -> Result<Vec<(u32, Usuario)>, Error> {
+        fn reporte_resultado_interno(&self, id_eleccion: u32) -> Result<Vec<(u32, String)>, Error> {
             let candidatos = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -177,23 +181,21 @@ mod reportes {
                 .iter()
                 .map(|c| {
                     // Si nada nefasto está sucediendo, esto no debe puede ser error jamás, por eso `unwrap`
-                    (
-                        c.get_votos(),
-                        // recupera info de cada candidato
-                        build_call::<DefaultEnvironment>()
-                            .call(self.votacion_account_id)
-                            .exec_input(
-                                ExecutionInput::new(Selector::new(ink::selector_bytes!(
-                                    "get_usuarios"
-                                )))
-                                .push_arg(c.get_account_id()),
-                            )
-                            .returns::<Result<Usuario, Error>>()
-                            .invoke()
-                            .unwrap(),
-                    )
+                    // recupera info de cada candidato
+                    let u = build_call::<DefaultEnvironment>()
+                        .call(self.votacion_account_id)
+                        .exec_input(
+                            ExecutionInput::new(Selector::new(ink::selector_bytes!(
+                                "get_usuarios"
+                            )))
+                            .push_arg(c.get_account_id()),
+                        )
+                        .returns::<Result<Usuario, Error>>()
+                        .invoke()
+                        .unwrap();
+                    (c.get_votos(), format!("{} {}", u.nombre, u.apellido))
                 })
-                .collect::<Vec<(u32, Usuario)>>();
+                .collect::<Vec<(u32, String)>>();
 
             resultados.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
 
@@ -723,14 +725,7 @@ mod reportes {
 
             assert_eq!(
                 reporte_votantes,
-                vec![
-                    Usuario::new("Dave".to_string(), "D".to_string(), "33333333".to_string()),
-                    Usuario::new(
-                        "Ferdie".to_string(),
-                        "F".to_string(),
-                        "44444444".to_string()
-                    )
-                ]
+                vec!["Dave D".to_string(), "Ferdie F".to_string()]
             );
 
             assert_eq!(reporte_participacion, (2, 100));
@@ -738,18 +733,8 @@ mod reportes {
             assert_eq!(
                 reporte_resultado,
                 vec![
-                    (
-                        2,
-                        Usuario::new(
-                            "Charlie".to_string(),
-                            "C".to_string(),
-                            "22222222".to_string()
-                        )
-                    ),
-                    (
-                        0,
-                        Usuario::new("Bob".to_string(), "B".to_string(), "11111111".to_string())
-                    )
+                    (2, format!("{} {}", "Charlie", "C")),
+                    (0, format!("{} {}", "Bob", "B"))
                 ]
             );
 
@@ -1125,7 +1110,7 @@ mod reportes {
                     &ink_e2e::alice(),
                     &call_builder.reporte_votantes(eleccion_id),
                 )
-                .dry_run()
+                .submit()
                 .await?
                 .return_value()
                 .unwrap();
@@ -1135,7 +1120,7 @@ mod reportes {
                     &ink_e2e::alice(),
                     &call_builder.reporte_participacion(eleccion_id),
                 )
-                .dry_run()
+                .submit()
                 .await?
                 .return_value()
                 .unwrap();
@@ -1145,42 +1130,18 @@ mod reportes {
                     &ink_e2e::alice(),
                     &call_builder.reporte_resultado(eleccion_id),
                 )
-                .dry_run()
+                .submit()
                 .await?
                 .return_value()
                 .unwrap();
 
-            assert_eq!(
-                reporte_votantes,
-                vec![
-                    Usuario::new("Dave".to_string(), "D".to_string(), "33333333".to_string()),
-                    Usuario::new(
-                        "Ferdie".to_string(),
-                        "F".to_string(),
-                        "44444444".to_string()
-                    )
-                ]
-            );
+            assert_eq!(reporte_votantes[0], format!("{} {}", "Dave", "D"),);
+            assert_eq!(reporte_votantes[1], format!("{} {}", "Ferdie", "F"),);
 
             assert_eq!(reporte_participacion, (2, 0));
 
-            assert_eq!(
-                reporte_resultado,
-                vec![
-                    (
-                        0,
-                        Usuario::new("Bob".to_string(), "B".to_string(), "11111111".to_string())
-                    ),
-                    (
-                        0,
-                        Usuario::new(
-                            "Charlie".to_string(),
-                            "C".to_string(),
-                            "22222222".to_string()
-                        )
-                    ),
-                ]
-            );
+            assert_eq!(reporte_resultado[0], (0, format!("{} {}", "Bob", "B")),);
+            assert_eq!(reporte_resultado[1], (0, format!("{} {}", "Charlie", "C")));
 
             Ok(())
         }
