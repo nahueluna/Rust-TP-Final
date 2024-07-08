@@ -59,7 +59,7 @@ mod reportes {
                     EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
                     EstadoDeEleccion::Finalizada => Ok(()),
                 },
-                Err(e) => return Err(e),
+                Err(e) => Err(e),
             }
         }
 
@@ -72,7 +72,7 @@ mod reportes {
             self.reporte_votantes_interno(id_eleccion)
         }
 
-        pub fn reporte_votantes_interno(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
+        fn reporte_votantes_interno(&self, id_eleccion: u32) -> Result<Vec<Usuario>, Error> {
             let votantes_aprobados = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -117,8 +117,7 @@ mod reportes {
             self.reporte_participacion_interno(id_eleccion)
         }
 
-        #[ink(message)]
-        pub fn reporte_participacion_interno(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
+        fn reporte_participacion_interno(&self, id_eleccion: u32) -> Result<(u32, u8), Error> {
             let votantes = build_call::<DefaultEnvironment>()
                 .call(self.votacion_account_id)
                 .exec_input(
@@ -161,7 +160,7 @@ mod reportes {
             self.reporte_resultado_interno(id_eleccion)
         }
 
-        pub fn reporte_resultado_interno(
+        fn reporte_resultado_interno(
             &self,
             id_eleccion: u32,
         ) -> Result<Vec<(u32, Usuario)>, Error> {
