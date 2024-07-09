@@ -143,14 +143,13 @@ mod reportes {
             // Atrapar error de división por cero
             // Si no hay votantes, es seguro asumir que no hay votos
             if cantidad_de_votantes == 0 {
-                return Ok((0, 0));
+                Ok((0, 0))
+            } else {
+                // Es seguro hacer esta operación en un `u8`. Es imposible que hayan más
+                // votantes que votaron que votantes inscriptos en una elección
+                let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
+                Ok((cantidad_de_votantes, porcentaje.try_into().unwrap()))
             }
-
-            // Es seguro hacer esta operación en un `u8`. Es imposible que hayan más
-            // votantes que votaron que votantes inscriptos en una elección
-            let porcentaje = cantidad_de_votantes_que_votaron * 100 / cantidad_de_votantes;
-
-            Ok((cantidad_de_votantes, porcentaje.try_into().unwrap()))
         }
 
         /// Reporta el resultado para un elección de id `id_elección`. Retorna un
@@ -300,13 +299,13 @@ mod reportes {
                     &ink_e2e::alice(),
                     &votacion_call_builder.crear_eleccion(
                         String::from("Presidente"),
-                        inicio.minute().try_into().unwrap(),
                         inicio.hour().try_into().unwrap(),
+                        inicio.minute().try_into().unwrap(),
                         inicio.day().try_into().unwrap(),
                         inicio.month().try_into().unwrap(),
                         inicio.year().try_into().unwrap(),
-                        fin.minute().try_into().unwrap(),
                         fin.hour().try_into().unwrap(),
+                        fin.minute().try_into().unwrap(),
                         fin.day().try_into().unwrap(),
                         fin.month().try_into().unwrap(),
                         fin.year().try_into().unwrap(),
@@ -411,11 +410,6 @@ mod reportes {
                 .expect("Fallo la instanciación del contrato de votación");
             let mut votacion_call_builder = contrato_votacion.call_builder::<SistemaVotacion>();
             let votacion_acc_id = contrato_votacion.account_id;
-            let votacion_hash = client
-                .call(&ink_e2e::bob(), &votacion_call_builder.get_hash())
-                .submit()
-                .await?
-                .return_value();
 
             // Registrar a bob
             assert!(client
@@ -485,13 +479,13 @@ mod reportes {
                     &ink_e2e::alice(),
                     &votacion_call_builder.crear_eleccion(
                         String::from("Presidente"),
-                        inicio.minute().try_into().unwrap(),
                         inicio.hour().try_into().unwrap(),
+                        inicio.minute().try_into().unwrap(),
                         inicio.day().try_into().unwrap(),
                         inicio.month().try_into().unwrap(),
                         inicio.year().try_into().unwrap(),
-                        fin.minute().try_into().unwrap(),
                         fin.hour().try_into().unwrap(),
+                        fin.minute().try_into().unwrap(),
                         fin.day().try_into().unwrap(),
                         fin.month().try_into().unwrap(),
                         fin.year().try_into().unwrap(),
@@ -615,7 +609,7 @@ mod reportes {
                 .submit()
                 .await
                 .expect("Fallo la instanciación del contrato de reportes");
-            let mut call_builder = contrato_reportes.call_builder::<Reportes>();
+            let call_builder = contrato_reportes.call_builder::<Reportes>();
 
             // delegar el id de reportes en el contrato de votación
             client
@@ -773,7 +767,7 @@ mod reportes {
                 .submit()
                 .await
                 .expect("Fallo la instanciación del contrato de reportes");
-            let mut call_builder = contrato_reportes.call_builder::<Reportes>();
+            let call_builder = contrato_reportes.call_builder::<Reportes>();
 
             // Delegar el id de reportes en el contrato de votación
             client
@@ -794,13 +788,13 @@ mod reportes {
                     &ink_e2e::alice(),
                     &votacion_call_builder.crear_eleccion(
                         String::from("Presidente"),
-                        inicio.minute().try_into().unwrap(),
                         inicio.hour().try_into().unwrap(),
+                        inicio.minute().try_into().unwrap(),
                         inicio.day().try_into().unwrap(),
                         inicio.month().try_into().unwrap(),
                         inicio.year().try_into().unwrap(),
-                        fin.minute().try_into().unwrap(),
                         fin.hour().try_into().unwrap(),
+                        fin.minute().try_into().unwrap(),
                         fin.day().try_into().unwrap(),
                         fin.month().try_into().unwrap(),
                         fin.year().try_into().unwrap(),
@@ -942,13 +936,13 @@ mod reportes {
                     &ink_e2e::alice(),
                     &votacion_call_builder.crear_eleccion(
                         String::from("Presidente"),
-                        inicio.minute().try_into().unwrap(),
                         inicio.hour().try_into().unwrap(),
+                        inicio.minute().try_into().unwrap(),
                         inicio.day().try_into().unwrap(),
                         inicio.month().try_into().unwrap(),
                         inicio.year().try_into().unwrap(),
-                        fin.minute().try_into().unwrap(),
                         fin.hour().try_into().unwrap(),
+                        fin.minute().try_into().unwrap(),
                         fin.day().try_into().unwrap(),
                         fin.month().try_into().unwrap(),
                         fin.year().try_into().unwrap(),
@@ -1072,7 +1066,7 @@ mod reportes {
                 .submit()
                 .await
                 .expect("Fallo la instanciación del contrato de reportes");
-            let mut call_builder = contrato_reportes.call_builder::<Reportes>();
+            let call_builder = contrato_reportes.call_builder::<Reportes>();
 
             // Delegar el id de reportes en el contrato de votación
             client
@@ -1120,7 +1114,7 @@ mod reportes {
                     &ink_e2e::alice(),
                     &call_builder.reporte_participacion(eleccion_id),
                 )
-                .submit()
+                .dry_run()
                 .await?
                 .return_value()
                 .unwrap();
@@ -1130,7 +1124,7 @@ mod reportes {
                     &ink_e2e::alice(),
                     &call_builder.reporte_resultado(eleccion_id),
                 )
-                .submit()
+                .dry_run()
                 .await?
                 .return_value()
                 .unwrap();

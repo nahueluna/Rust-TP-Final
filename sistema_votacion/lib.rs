@@ -4,19 +4,21 @@ pub use self::sistema_votacion::SistemaVotacion;
 pub use self::sistema_votacion::SistemaVotacionRef;
 
 pub mod candidato;
-pub mod usuario;
-pub mod votante;
 pub mod eleccion;
 pub mod enums;
 mod fecha;
+pub mod usuario;
+pub mod votante;
 
 #[ink::contract]
 mod sistema_votacion {
-    use crate::eleccion::{Eleccion, Miembro, Rol};
+    use crate::eleccion::{Eleccion, Rol};
+    use crate::eleccion::Miembro;
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
-    use crate::votante::*;
+    use crate::votante::Votante;
+    use crate::candidato::Candidato;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
@@ -176,13 +178,16 @@ mod sistema_votacion {
             if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 let id_miembros = eleccion.get_no_verificados(&rol);
 
-                let miembros = id_miembros.iter().map(|id| {
-                    let Some(u) = self.usuarios.get(id) else {
-                        panic!("{}", Error::UsuarioNoExistente);
-                    };
+                let miembros = id_miembros
+                    .iter()
+                    .map(|id| {
+                        let Some(u) = self.usuarios.get(id) else {
+                            panic!("{}", Error::UsuarioNoExistente);
+                        };
 
-                    (id.clone(), u.clone())
-                }).collect();
+                        (id.clone(), u.clone())
+                    })
+                    .collect();
 
                 Ok(miembros)
             } else {
@@ -211,13 +216,16 @@ mod sistema_votacion {
 
                 let id_candidatos = eleccion.get_candidatos_verificados();
 
-                let candidatos = id_candidatos.iter().map(|id| {
-                    let Some(u) = self.usuarios.get(id) else {
-                        panic!("{}", Error::UsuarioNoExistente);
-                    };
+                let candidatos = id_candidatos
+                    .iter()
+                    .map(|id| {
+                        let Some(u) = self.usuarios.get(id) else {
+                            panic!("{}", Error::UsuarioNoExistente);
+                        };
 
-                    (id.clone(), u.nombre.clone(), u.apellido.clone())
-                }).collect();
+                        (id.clone(), u.nombre.clone(), u.apellido.clone())
+                    })
+                    .collect();
 
                 Ok(candidatos)
             } else {
@@ -275,7 +283,7 @@ mod sistema_votacion {
         pub fn get_candidatos(
             &self,
             id_votacion: u32,
-        ) -> Result<Vec<crate::candidato::Candidato>, Error> {
+        ) -> Result<Vec<Candidato>, Error> {
             if !self.es_contrato_reportes() {
                 Err(Error::PermisosInsuficientes)
             } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
@@ -964,7 +972,10 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
-                    .unwrap().first().unwrap().0,
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .0,
                 env.accounts.alice
             );
 
@@ -973,7 +984,10 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
-                    .unwrap().first().unwrap().0,
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .0,
                 env.accounts.charlie
             );
 
@@ -1064,7 +1078,7 @@ mod sistema_votacion {
                     Rol::Candidato,
                     EstadoAprobacion::Aprobado,
                 )
-            .is_ok());
+                .is_ok());
 
             // Se rechaza a Bob
             assert!(env
@@ -1075,24 +1089,26 @@ mod sistema_votacion {
                     Rol::Votante,
                     EstadoAprobacion::Rechazado,
                 )
-            .is_ok());
+                .is_ok());
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             // Se verifica que el AccountId de Alice se encuentre en los candidatos disponibles (verifica la propia Alice)
             assert_eq!(
                 env.contract
                     .consultar_candidatos_disponibles(eleccion_id)
-                    .unwrap().first().unwrap().0,
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .0,
                 env.accounts.alice
             );
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             // Bob intenta ver los candidatos disponibles. No es posible porque fue rechazado de la elección
-            assert!(
-                env.contract
-                    .consultar_candidatos_disponibles(eleccion_id)
-                    .is_err()
-            );
+            assert!(env
+                .contract
+                .consultar_candidatos_disponibles(eleccion_id)
+                .is_err());
         }
 
         #[ink::test]
@@ -1156,7 +1172,10 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
-                    .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
+                    .unwrap()
+                    .iter()
+                    .map(|m| m.0)
+                    .collect::<Vec<_>>(),
                 vec![env.accounts.alice, env.accounts.bob]
             );
 
@@ -1164,7 +1183,10 @@ mod sistema_votacion {
             assert_eq!(
                 env.contract
                     .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
-                    .unwrap().iter().map(|m| m.0).collect::<Vec<_>>(),
+                    .unwrap()
+                    .iter()
+                    .map(|m| m.0)
+                    .collect::<Vec<_>>(),
                 vec![env.accounts.charlie, env.accounts.django]
             );
 
@@ -1516,7 +1538,7 @@ mod sistema_votacion {
 
             // Intento votar en una eleccion que no existe
             assert_eq!(
-                env.contract.votar(u32::MAX,env.accounts.bob),
+                env.contract.votar(u32::MAX, env.accounts.bob),
                 Err(Error::VotacionNoExiste)
             );
 
@@ -1584,14 +1606,14 @@ mod sistema_votacion {
             // Intento votar en una eleccion con un votante invalido
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.frank);
             assert_eq!(
-                env.contract.votar(eleccion_id,env.accounts.alice),
+                env.contract.votar(eleccion_id, env.accounts.alice),
                 Err(Error::VotanteNoExistente)
             );
 
             // Intento votar a un candidato invalido en una eleccion
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert_eq!(
-                env.contract.votar(eleccion_id,env.accounts.frank),
+                env.contract.votar(eleccion_id, env.accounts.frank),
                 Err(Error::CandidatoNoExistente)
             );
 
@@ -1601,7 +1623,7 @@ mod sistema_votacion {
 
             // Django intenta volver a votar a Alice
             assert_eq!(
-                env.contract.votar(eleccion_id,env.accounts.alice),
+                env.contract.votar(eleccion_id, env.accounts.alice),
                 Err(Error::VotanteYaVoto)
             );
 
@@ -1610,12 +1632,14 @@ mod sistema_votacion {
 
             // Pido los candidatos aprobados
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
-            let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
-            let alice = env.accounts.alice;
+            let candidatos = env
+                .contract
+                .consultar_candidatos_disponibles(eleccion_id)
+                .unwrap();
+            let alice_id = env.accounts.alice;
+            let alice = env.contract.usuarios.get(alice_id).unwrap();
             // La candidata debe ser Alice ya que es la unica aprobada
-            let response = vec![
-                (1, env.contract.usuarios.get(alice).unwrap()),
-            ];
+            let response = vec![(alice_id, alice.nombre, alice.apellido)];
             assert_eq!(candidatos, response);
         }
 
@@ -1625,19 +1649,21 @@ mod sistema_votacion {
             let mut env = ContractEnv::new_inicializado();
 
             // Probar el valor por defecto de contrato_reportes
-            assert_eq!(env.contract.es_contrato_reportes(),false);
+            assert_eq!(env.contract.es_contrato_reportes(), false);
 
             // Cambio el AccountId de contrato_reportes
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract.admin);
-            env.contract.delegar_contrato_reportes(env.accounts.bob).unwrap();
+            env.contract
+                .delegar_contrato_reportes(env.accounts.bob)
+                .unwrap();
 
             // Llamo al metodo con Alice
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            assert_eq!(env.contract.es_contrato_reportes(),false);
+            assert_eq!(env.contract.es_contrato_reportes(), false);
 
             // Llamo al metodo con bob
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
-            assert_eq!(env.contract.es_contrato_reportes(),true);
+            assert_eq!(env.contract.es_contrato_reportes(), true);
         }
 
         #[ink::test]
@@ -1677,7 +1703,11 @@ mod sistema_votacion {
             );
 
             // Llamo al metodo con una eleccion sin votantes
-            assert!(env.contract.get_info_votantes_aprobados(eleccion_id).unwrap().is_empty());
+            assert!(env
+                .contract
+                .get_info_votantes_aprobados(eleccion_id)
+                .unwrap()
+                .is_empty());
 
             // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
@@ -1744,7 +1774,10 @@ mod sistema_votacion {
                 .unwrap();
 
             // Llamo al metodo correctamente
-            let info_votantes = env.contract.get_info_votantes_aprobados(eleccion_id).unwrap();
+            let info_votantes = env
+                .contract
+                .get_info_votantes_aprobados(eleccion_id)
+                .unwrap();
             let alice = env.accounts.alice;
             let charlie = env.accounts.charlie;
             // Los votantes deben ser Alice y Charlie ya que son los unicos aprobados
@@ -1792,7 +1825,11 @@ mod sistema_votacion {
             );
 
             // Llamo al metodo con una eleccion sin votantes
-            assert!(env.contract.get_votantes_aprobados(eleccion_id).unwrap().is_empty());
+            assert!(env
+                .contract
+                .get_votantes_aprobados(eleccion_id)
+                .unwrap()
+                .is_empty());
 
             // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
@@ -1861,7 +1898,12 @@ mod sistema_votacion {
             // Llamo al metodo correctamente
             let info_votantes = env.contract.get_votantes_aprobados(eleccion_id).unwrap();
             // Los votantes deben ser Alice y Charlie ya que son los unicos aprobados
-            let response = env.contract.elecciones.get(eleccion_id -1).unwrap().votantes_aprobados;
+            let response = env
+                .contract
+                .elecciones
+                .get(eleccion_id - 1)
+                .unwrap()
+                .votantes_aprobados;
             assert_eq!(info_votantes, response);
         }
 
@@ -1894,10 +1936,10 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             let alice_id = env.accounts.alice;
             let alice = env.contract.usuarios.get(alice_id).unwrap();
-            assert_eq!(env.contract.get_usuarios(alice_id).unwrap(),alice);
+            assert_eq!(env.contract.get_usuarios(alice_id).unwrap(), alice);
             let charlie_id = env.accounts.charlie;
             let charlie = env.contract.usuarios.get(charlie_id).unwrap();
-            assert_eq!(env.contract.get_usuarios(charlie_id).unwrap(),charlie);
+            assert_eq!(env.contract.get_usuarios(charlie_id).unwrap(), charlie);
         }
 
         #[ink::test]

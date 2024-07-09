@@ -140,17 +140,33 @@ impl Eleccion {
     /// Retorna `true` si el usuario con `AccoundId` especificado existe en la eleccion,
     /// sea `Candidato` o `Votante`
     pub fn existe_usuario(&self, id: &AccountId) -> bool {
-        self.votantes_pendientes.iter().any(|vot| vot.get_account_id() == *id)
-            || self.votantes_aprobados.iter().any(|vot| vot.get_account_id() == *id)
-            || self.candidatos_pendientes.iter().any(|cand| cand.get_account_id() == *id)
-            || self.candidatos_aprobados.iter().any(|cand| cand.get_account_id() == *id)
+        self.votantes_pendientes
+            .iter()
+            .any(|vot| vot.get_account_id() == *id)
+            || self
+                .votantes_aprobados
+                .iter()
+                .any(|vot| vot.get_account_id() == *id)
+            || self
+                .candidatos_pendientes
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
+            || self
+                .candidatos_aprobados
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
     }
 
     /// Retorna `true` si el usuario con `AccountId` especificado es un miembro
     /// aprobado en la elección, sea `Candidato` o `Votante`
     pub fn existe_miembro_aprobado(&self, id: &AccountId) -> bool {
-        self.votantes_aprobados.iter().any(|vot| vot.get_account_id() == *id)
-            || self.candidatos_aprobados.iter().any(|cand| cand.get_account_id() == *id)
+        self.votantes_aprobados
+            .iter()
+            .any(|vot| vot.get_account_id() == *id)
+            || self
+                .candidatos_aprobados
+                .iter()
+                .any(|cand| cand.get_account_id() == *id)
     }
 
     /// Dado un `AccoundId` y `Rol`, aprueba al usuario. Retorna `Ok()` si se ha realizado
@@ -203,22 +219,25 @@ impl Eleccion {
     pub fn get_no_verificados(&self, rol: &Rol) -> Vec<AccountId> {
         match rol {
             Rol::Votante => self
-                            .votantes_pendientes
-                            .iter()
-                            .map(|v| (v.get_account_id()))
-                            .collect(),
-            
+                .votantes_pendientes
+                .iter()
+                .map(|v| (v.get_account_id()))
+                .collect(),
+
             Rol::Candidato => self
-                            .candidatos_pendientes
-                            .iter()
-                            .map(|c| c.get_account_id())
-                            .collect(),
+                .candidatos_pendientes
+                .iter()
+                .map(|c| c.get_account_id())
+                .collect(),
         }
     }
 
     /// Retorna un vector de `AccountId` de los candidatos aprobados.
     pub fn get_candidatos_verificados(&self) -> Vec<AccountId> {
-        self.candidatos_aprobados.iter().map(|c| c.get_account_id()).collect()
+        self.candidatos_aprobados
+            .iter()
+            .map(|c| c.get_account_id())
+            .collect()
     }
 
     /// Permite que el votante `id_votante` vote al candidato `id_cantidato`.
@@ -256,8 +275,13 @@ impl Eleccion {
 }
 
 mod tests {
-    use super::*;
-    use crate::fecha::Fecha;
+    #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+    use crate::{
+        eleccion::{Eleccion, Miembro, Rol},
+        enums::{Error, EstadoDeEleccion},
+        fecha::Fecha,
+    };
+    use ink::primitives::AccountId;
 
     #[test]
     fn test_estado_eleccion() {
@@ -362,9 +386,8 @@ mod tests {
         let m_id = AccountId::from(miembro_id);
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
         let res = eleccion.get_posicion_miembro_pendiente(&m_id, &Rol::Candidato);
-        match res {
-            Some(pos) => assert_eq!(pos, 0 as usize),
-            None => (),
+        if let Some(pos) = res {
+            assert_eq!(pos, 0_usize)
         }
 
         let miembro_id: [u8; 32] = [255; 32];
@@ -372,7 +395,7 @@ mod tests {
         eleccion.añadir_miembro(m_id, Rol::Votante, 0).unwrap();
         let res = eleccion.get_posicion_miembro_pendiente(&m_id, &Rol::Votante);
         match res {
-            Some(pos) => assert_eq!(pos, 0 as usize),
+            Some(pos) => assert_eq!(pos, 0_usize),
             None => (),
         }
     }
@@ -538,7 +561,7 @@ mod tests {
         let fecha_inicio = Fecha::new(0, 0, 0, 20, 5, 2024); // 20/05/2024 00:00:00
         let fecha_fin = Fecha::new(0, 0, 0, 21, 5, 2024); // 21/05/2024 00:00:00
         let mut eleccion = Eleccion::new(id, puesto, fecha_inicio, fecha_fin);
-        
+
         // Testeo
         let miembro_id: [u8; 32] = [0; 32];
         let m_id = AccountId::from(miembro_id);
@@ -548,16 +571,19 @@ mod tests {
         assert!(eleccion.get_candidatos_verificados().first().is_none());
 
         eleccion.añadir_miembro(m_id, Rol::Candidato, 0).unwrap();
-        
+
         // Antes de aprobar miembro
         assert!(!eleccion.existe_miembro_aprobado(&m_id));
         assert!(eleccion.get_candidatos_verificados().first().is_none());
-        
+
         eleccion.aprobar_miembro(&m_id, &Rol::Candidato).unwrap();
 
         // Miembro registrado y aprobado
         assert!(eleccion.existe_miembro_aprobado(&m_id));
-        assert_eq!(eleccion.get_candidatos_verificados().first().unwrap(), &m_id);
+        assert_eq!(
+            eleccion.get_candidatos_verificados().first().unwrap(),
+            &m_id
+        );
     }
 
     #[test]
