@@ -6,7 +6,7 @@ use core::fmt::Display;
 /// en el proceso de cambio de estado
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum EstadoAprobacion {
     Aprobado,
     Rechazado,
@@ -85,3 +85,12 @@ impl Display for Error {
     }
 }
 
+#[ink::scale_derive(Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
+#[derive(Debug, PartialEq, Clone)]
+/// Estados que puede tener la eleccion según su fecha de inicio y cierre
+pub enum EstadoDeEleccion {
+    Pendiente,
+    EnCurso,
+    Finalizada,
+}

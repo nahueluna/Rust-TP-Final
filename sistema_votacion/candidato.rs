@@ -6,7 +6,7 @@ use crate::{eleccion::Miembro, enums::Error};
 /// Almacena su `AccountId` y cantidad de votos recibidos.
 #[ink::scale_derive(Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(ink::storage::traits::StorageLayout))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Candidato {
     id: AccountId,
     votos: u32,
@@ -55,4 +55,3 @@ mod tests {
         assert_eq!(candidato.votos, 1);
     }
 }
-
