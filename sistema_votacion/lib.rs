@@ -88,7 +88,7 @@ mod sistema_votacion {
             }
         }
 
-        /// Registra un votante o un candidato en una votacion determinada.
+        /// Registra un votante o un candidato en una elección determinada.
         ///
         /// Retorna `Error::UsuarioNoExistente` si el usuario no esta registrado.
         /// Retorna `Error::MiembroExistente` si el usuario ya esta registrado en la votacion.
@@ -96,15 +96,15 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn registrar_en_eleccion(
             &mut self, 
-            id_votacion: u32, 
+            id_eleccion: u32, 
             rol: Rol
         ) -> Result<(), Error> {
-            Self::registrar_en_eleccion_interno(self, id_votacion, rol)
+            Self::registrar_en_eleccion_interno(self, id_eleccion, rol)
         } 
         
         fn registrar_en_eleccion_interno(
             &mut self, 
-            id_votacion: u32, 
+            id_eleccion: u32, 
             rol: Rol
         ) -> Result<(), Error> {
             let id = self.env().caller();
@@ -113,13 +113,13 @@ mod sistema_votacion {
                 return Err(Error::UsuarioNoExistente);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if votacion.existe_usuario(&id) {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1).as_mut() {
+                if eleccion.existe_usuario(&id) {
                     Err(Error::MiembroExistente)
                 } else {
-                    let r = votacion.añadir_miembro(id, rol, self.env().block_timestamp());
+                    let r = eleccion.añadir_miembro(id, rol, self.env().block_timestamp());
                     if r.is_ok() {
-                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                        self.elecciones.set(id_eleccion - 1, eleccion); // Necesario ya que no trabajamos con una referencia
                     }
                     r
                 }
@@ -315,17 +315,17 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn cambiar_estado_aprobacion(
             &mut self,
-            id_votacion: u32,
+            id_eleccion: u32,
             id_miembro: AccountId,
             rol: Rol,
             estado: EstadoAprobacion,
         ) -> Result<(), Error> {
-            Self::cambiar_estado_aprobacion_interno(self, id_votacion, id_miembro, rol, estado)
+            Self::cambiar_estado_aprobacion_interno(self, id_eleccion, id_miembro, rol, estado)
         }
         
         fn cambiar_estado_aprobacion_interno(
             &mut self,
-            id_votacion: u32,
+            id_eleccion: u32,
             id_miembro: AccountId,
             rol: Rol,
             estado: EstadoAprobacion,
@@ -334,20 +334,20 @@ mod sistema_votacion {
                 return Err(Error::PermisosInsuficientes);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                return match votacion.consultar_estado(self.env().block_timestamp()) {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1).as_mut() {
+                return match eleccion.consultar_estado(self.env().block_timestamp()) {
                     EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
                     EstadoDeEleccion::Pendiente => {
                         let res = match estado {
                             EstadoAprobacion::Aprobado => {
-                                votacion.aprobar_miembro(&id_miembro, &rol)
+                                eleccion.aprobar_miembro(&id_miembro, &rol)
                             }
                             EstadoAprobacion::Rechazado => {
-                                votacion.rechazar_miembro(&id_miembro, &rol)
+                                eleccion.rechazar_miembro(&id_miembro, &rol)
                             }
                         };
-                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                        self.elecciones.set(id_eleccion - 1, eleccion); // Necesario ya que no trabajamos con una referencia
                         res
                     }
                 };
@@ -357,25 +357,25 @@ mod sistema_votacion {
         }
 
         /// # Reportes
-        /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
+        /// Retorna los candidatos aprobados en la elección de id `id_eleccion` asociados a su voto.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
         /// Verifica el estado de la elección y si el invocante es el contrato de reportes
         #[ink(message)]
         pub fn get_candidatos(
             &self,
-            id_votacion: u32,
+            id_eleccion: u32,
         ) -> Result<Vec<Candidato>, Error> {
-            Self::get_candidatos_interno(self, id_votacion)
+            Self::get_candidatos_interno(self, id_eleccion)
         }
         
         fn get_candidatos_interno(
             &self,
-            id_votacion: u32,
+            id_eleccion: u32,
         ) -> Result<Vec<Candidato>, Error> {
             if !self.es_contrato_reportes() {
                 Err(Error::PermisosInsuficientes)
-            } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+            } else if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 match eleccion.consultar_estado(self.env().block_timestamp()) {
                     EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
                     EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
@@ -386,15 +386,15 @@ mod sistema_votacion {
             }
         }
 
-        /// Recibe el id de una votacion y retorna su estado actual.
+        /// Recibe el id de una elección y retorna su estado actual.
         /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
         #[ink(message)]
-        pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
-            Self::consultar_estado_interno(self, id_votacion)
+        pub fn consultar_estado(&self, id_eleccion: u32) -> Result<EstadoDeEleccion, Error> {
+            Self::consultar_estado_interno(self, id_eleccion)
         }
         
-        fn consultar_estado_interno(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
-            if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+        fn consultar_estado_interno(&self, id_eleccion: u32) -> Result<EstadoDeEleccion, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 Ok(eleccion.consultar_estado(self.env().block_timestamp()))
             } else {
                 Err(Error::VotacionNoExiste)
@@ -412,21 +412,21 @@ mod sistema_votacion {
         }
 
         /// Le permite a un registrado en el sistema votar por un candidato
-        /// `id_candidato` en una elección `id_votacion`, solo si el usuario
+        /// `id_candidato` en una elección `id_eleccion`, solo si el usuario
         /// invocante está aprobado en la misma.
         #[ink(message)]
-        pub fn votar(&mut self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
-            Self::votar_interno(self, id_votacion, id_candidato)
+        pub fn votar(&mut self, id_eleccion: u32, id_candidato: AccountId) -> Result<(), Error> {
+            Self::votar_interno(self, id_eleccion, id_candidato)
         }
         
-        fn votar_interno(&mut self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
-            if let Some(mut eleccion) = self.elecciones.get(id_votacion - 1) {
+        fn votar_interno(&mut self, id_eleccion: u32, id_candidato: AccountId) -> Result<(), Error> {
+            if let Some(mut eleccion) = self.elecciones.get(id_eleccion - 1) {
                 eleccion.votar(
                     self.env().caller(),
                     id_candidato,
                     self.env().block_timestamp(),
                 )?;
-                self.elecciones.set(id_votacion - 1, &eleccion);
+                self.elecciones.set(id_eleccion - 1, &eleccion);
                 Ok(())
             } else {
                 Err(Error::VotacionNoExiste)
