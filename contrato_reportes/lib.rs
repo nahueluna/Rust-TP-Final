@@ -315,7 +315,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
@@ -492,7 +493,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
@@ -574,7 +576,7 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(reportes_account_id),
+                    &votacion_call_builder.establecer_contrato_reportes(reportes_account_id),
                 )
                 .submit()
                 .await?
@@ -825,7 +827,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
@@ -1205,7 +1208,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
@@ -1379,7 +1383,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
@@ -1536,7 +1541,7 @@ mod reportes {
 
             // Crear una elección
             let inicio = Utc::now() + Duration::minutes(1);
-            let fin = Utc::now() + Duration::seconds(35);
+            let fin = Utc::now() + Duration::minutes(2);
             let eleccion_id: u32 = client
                 .call(
                     &ink_e2e::alice(),
@@ -1678,7 +1683,8 @@ mod reportes {
             client
                 .call(
                     &ink_e2e::alice(),
-                    &votacion_call_builder.delegar_contrato_reportes(contrato_reportes.account_id),
+                    &votacion_call_builder
+                        .establecer_contrato_reportes(contrato_reportes.account_id),
                 )
                 .submit()
                 .await?
