@@ -12,13 +12,13 @@ pub mod votante;
 
 #[ink::contract]
 mod sistema_votacion {
-    use crate::eleccion::{Eleccion, Rol};
+    use crate::candidato::Candidato;
     use crate::eleccion::Miembro;
+    use crate::eleccion::{Eleccion, Rol};
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
     use crate::votante::Votante;
-    use crate::candidato::Candidato;
     use ink::prelude::{string::String, vec::Vec};
     use ink::storage::{Mapping, StorageVec};
 
@@ -274,29 +274,6 @@ mod sistema_votacion {
             }
         }
 
-        /// # Reportes
-        /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
-        /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
-        /// usuarios registrados en el sistema.
-        /// Verifica el estado de la elección y si el invocante es el contrato de reportes
-        #[ink(message)]
-        pub fn get_candidatos(
-            &self,
-            id_votacion: u32,
-        ) -> Result<Vec<Candidato>, Error> {
-            if !self.es_contrato_reportes() {
-                Err(Error::PermisosInsuficientes)
-            } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
-                match eleccion.consultar_estado(self.env().block_timestamp()) {
-                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
-                    EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
-                    EstadoDeEleccion::Finalizada => Ok(eleccion.candidatos_aprobados),
-                }
-            } else {
-                Err(Error::VotacionNoExiste)
-            }
-        }
-
         /// Recibe el id de una votacion y retorna su estado actual.
         /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
         #[ink(message)]
@@ -387,7 +364,20 @@ mod sistema_votacion {
             }
         }
 
-        /// # Reportes
+        /// Permite al administrador establecer el AccountId del contrato que podrá acceder
+        /// a una serie de métodos que obtienen información de una elección
+        #[ink(message)]
+        pub fn delegar_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+            self.contrato_reportes = Some(account_id);
+            Ok(()) //exitoso
+        }
+    }
+
+    // Reportes
+    impl SistemaVotacion {
         /// Retorna `Result<T, E>` con vector de `Votante` o `Error` en caso
         /// de que la votacion no exista o que quien le invoca no sea el
         ///contrato de reportes
@@ -404,7 +394,6 @@ mod sistema_votacion {
             }
         }
 
-        /// # Reportes
         // Obtener un usuario cuyo AccountId es `account_id`
         // Devuelve `Err(Error::PermisosInsuficientes)` si el invocante no
         // es el contrato de reportes
@@ -423,15 +412,36 @@ mod sistema_votacion {
             }
         }
 
-        /// Permite al administrador establecer el AccountId del contrato que podrá acceder
-        /// a una serie de métodos que obtienen información de una elección
+        /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
+        /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
+        /// usuarios registrados en el sistema.
+        /// Verifica el estado de la elección y si el invocante es el contrato de reportes
         #[ink(message)]
-        pub fn delegar_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
-            if !self.es_admin() {
-                return Err(Error::PermisosInsuficientes);
+        pub fn get_candidatos(&self, id_votacion: u32) -> Result<Vec<Candidato>, Error> {
+            if !self.es_contrato_reportes() {
+                Err(Error::PermisosInsuficientes)
+            } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+                match eleccion.consultar_estado(self.env().block_timestamp()) {
+                    EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
+                    EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
+                    EstadoDeEleccion::Finalizada => Ok(eleccion.candidatos_aprobados),
+                }
+            } else {
+                Err(Error::VotacionNoExiste)
             }
-            self.contrato_reportes = Some(account_id);
-            Ok(()) //exitoso
+        }
+
+        /// Recibe el id de una votacion y retorna su estado actual.
+        /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
+        /// Devuelve `Error::PermisosInsuficientes` si el invocanto no es
+        /// el contrato de reportes
+        #[ink(message)]
+        pub fn get_estado_eleccion(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
+            if self.es_contrato_reportes() {
+                self.consultar_estado(id_votacion)
+            } else {
+                Err(Error::PermisosInsuficientes)
+            }
         }
 
         #[ink(message)]
@@ -439,6 +449,7 @@ mod sistema_votacion {
             self.env().own_code_hash().unwrap()
         }
 
+        #[ink(message)]
         pub fn get_account_id(&self) -> AccountId {
             self.env().account_id()
         }
@@ -1960,6 +1971,81 @@ mod sistema_votacion {
             env.contract
                 .delegar_contrato_reportes(env.contract_id)
                 .unwrap();
+        }
+
+        #[ink::test]
+        fn probar_get_estado_eleccion() {
+            // Inicializar sistema con usuarios registrados
+            let mut env = ContractEnv::new_inicializado();
+            ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+
+            // Crear una elección
+            let eleccion_id = env
+                .contract
+                .crear_eleccion(
+                    String::from("Presidente"),
+                    1,
+                    0,
+                    1,
+                    1,
+                    1970,
+                    2,
+                    0,
+                    1,
+                    1,
+                    1970,
+                )
+                .unwrap();
+
+            // Verificar que no puede invocarse si no es el contrato de reportes
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
+            assert_eq!(
+                env.contract
+                    .get_estado_eleccion(eleccion_id)
+                    .unwrap_err()
+                    .to_string(),
+                Error::PermisosInsuficientes {}.to_string()
+            );
+
+            // Establecer con fines de pruebas el id del contrato reportes igual al administrador
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
+            env.contract
+                .delegar_contrato_reportes(env.contract_id)
+                .unwrap();
+
+            // Verificar que no puede invocarse con un id de elección inválido
+            assert_eq!(
+                env.contract
+                    .get_estado_eleccion(u32::MAX)
+                    .unwrap_err()
+                    .to_string(),
+                Error::VotacionNoExiste {}.to_string()
+            );
+
+            // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
+
+            assert_eq!(
+                env.contract.get_estado_eleccion(eleccion_id),
+                Ok(EstadoDeEleccion::Pendiente)
+            );
+
+            // Establecer el tiempo para que la eleccion este en curso
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(5400000);
+
+            assert_eq!(
+                env.contract.get_estado_eleccion(eleccion_id),
+                Ok(EstadoDeEleccion::EnCurso)
+            );
+
+            // Establecer el tiempo en uno posterior a la elección
+            ink::env::test::set_block_timestamp::<DefaultEnvironment>(1700000000);
+
+            assert_eq!(
+                env.contract.get_estado_eleccion(eleccion_id),
+                Ok(EstadoDeEleccion::Finalizada)
+            );
         }
     }
 }
