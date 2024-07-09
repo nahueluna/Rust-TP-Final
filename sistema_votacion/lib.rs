@@ -13,8 +13,7 @@ pub mod votante;
 #[ink::contract]
 mod sistema_votacion {
     use crate::candidato::Candidato;
-    use crate::eleccion::Miembro;
-    use crate::eleccion::{Eleccion, Rol};
+    use crate::eleccion::{Eleccion, Rol, Miembro};
     use crate::enums::*;
     use crate::fecha::Fecha;
     use crate::usuario::Usuario;
@@ -39,6 +38,10 @@ mod sistema_votacion {
         /// toma como admin el `AccountId` de quien crea la instancia del contrato.
         #[ink(constructor)]
         pub fn new() -> Self {
+            Self::new_interno()
+        }
+        
+        fn new_interno() -> Self {
             let admin = Self::env().caller();
             Self {
                 admin,
@@ -53,6 +56,15 @@ mod sistema_votacion {
         /// Retorna `Error::UsuarioExistente` si el usuario ya existe.
         #[ink(message)]
         pub fn registrar_usuario(
+            &mut self,
+            nombre: String,
+            apellido: String,
+            dni: String,
+        ) -> Result<(), Error> {
+            Self::registrar_usuario_interno(self, nombre, apellido, dni)
+        }
+        
+        fn registrar_usuario_interno(
             &mut self,
             nombre: String,
             apellido: String,
@@ -75,26 +87,38 @@ mod sistema_votacion {
             }
         }
 
-        /// Registra un votante o un candidato en una votacion determinada.
+        /// Registra un votante o un candidato en una elección determinada.
         ///
         /// Retorna `Error::UsuarioNoExistente` si el usuario no esta registrado.
         /// Retorna `Error::MiembroExistente` si el usuario ya esta registrado en la votacion.
         /// Retorna `Error::VotacionNoExiste` si la votacion no existe.
         #[ink(message)]
-        pub fn registrar_en_eleccion(&mut self, id_votacion: u32, rol: Rol) -> Result<(), Error> {
+        pub fn registrar_en_eleccion(
+            &mut self, 
+            id_eleccion: u32, 
+            rol: Rol
+        ) -> Result<(), Error> {
+            Self::registrar_en_eleccion_interno(self, id_eleccion, rol)
+        } 
+        
+        fn registrar_en_eleccion_interno(
+            &mut self, 
+            id_eleccion: u32, 
+            rol: Rol
+        ) -> Result<(), Error> {
             let id = self.env().caller();
 
             if !self.usuarios.contains(id) {
                 return Err(Error::UsuarioNoExistente);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                if votacion.existe_usuario(&id) {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1).as_mut() {
+                if eleccion.existe_usuario(&id) {
                     Err(Error::MiembroExistente)
                 } else {
-                    let r = votacion.añadir_miembro(id, rol, self.env().block_timestamp());
+                    let r = eleccion.añadir_miembro(id, rol, self.env().block_timestamp());
                     if r.is_ok() {
-                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                        self.elecciones.set(id_eleccion - 1, eleccion); // Necesario ya que no trabajamos con una referencia
                     }
                     r
                 }
@@ -107,6 +131,34 @@ mod sistema_votacion {
         /// Retorna `Error::PermisosInsuficientes` si un usuario intenta acceder.
         #[ink(message)]
         pub fn crear_eleccion(
+            &mut self,
+            puesto: String,
+            hora_inicio: u8,
+            minuto_inicio: u8,
+            dia_inicio: u8,
+            mes_inicio: u8,
+            año_inicio: u16,
+            hora_fin: u8,
+            minuto_fin: u8,
+            dia_fin: u8,
+            mes_fin: u8,
+            año_fin: u16,
+        ) -> Result<u32, Error> {
+            Self::crear_eleccion_interno(self, 
+                puesto, 
+                hora_inicio, 
+                minuto_inicio, 
+                dia_inicio, 
+                mes_inicio, 
+                año_inicio, 
+                hora_fin, 
+                minuto_fin, 
+                dia_fin, 
+                mes_fin, 
+                año_fin)
+        }
+        
+        fn crear_eleccion_interno(
             &mut self,
             puesto: String,
             hora_inicio: u8,
@@ -147,6 +199,10 @@ mod sistema_votacion {
         /// Si el usuario que le invoca no es administrador retorna `Error::PermisosInsuficientes`
         #[ink(message)]
         pub fn delegar_admin(&mut self, id_nuevo_admin: AccountId) -> Result<(), Error> {
+            Self::delegar_admin_interno(self, id_nuevo_admin)
+        }
+        
+        fn delegar_admin_interno(&mut self, id_nuevo_admin: AccountId) -> Result<(), Error> {
             if !self.es_admin() {
                 return Err(Error::PermisosInsuficientes);
             }
@@ -166,7 +222,15 @@ mod sistema_votacion {
         /// Produce panic si el usuario de la elección
         /// no existe en el sistema.
         #[ink(message)]
-        pub fn consultar_miembros_no_verificados(
+        pub fn consultar_miembros_no_verificados_(
+            &self,
+            id_eleccion: u32,
+            rol: Rol,
+        ) -> Result<Vec<(AccountId, Usuario)>, Error> {
+            Self::consultar_miembros_no_verificados_interno(self, id_eleccion, rol)
+        }
+        
+        fn consultar_miembros_no_verificados_interno(
             &self,
             id_eleccion: u32,
             rol: Rol,
@@ -209,6 +273,13 @@ mod sistema_votacion {
             &self,
             id_eleccion: u32,
         ) -> Result<Vec<(AccountId, String, String)>, Error> {
+            Self::consultar_candidatos_disponibles_interno(self, id_eleccion)
+        }
+        
+        fn consultar_candidatos_disponibles_interno(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<(AccountId, String, String)>, Error> {
             if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 if !self.es_admin() && !eleccion.existe_miembro_aprobado(&self.env().caller()) {
                     return Err(Error::PermisosInsuficientes);
@@ -243,7 +314,17 @@ mod sistema_votacion {
         #[ink(message)]
         pub fn cambiar_estado_aprobacion(
             &mut self,
-            id_votacion: u32,
+            id_eleccion: u32,
+            id_miembro: AccountId,
+            rol: Rol,
+            estado: EstadoAprobacion,
+        ) -> Result<(), Error> {
+            Self::cambiar_estado_aprobacion_interno(self, id_eleccion, id_miembro, rol, estado)
+        }
+        
+        fn cambiar_estado_aprobacion_interno(
+            &mut self,
+            id_eleccion: u32,
             id_miembro: AccountId,
             rol: Rol,
             estado: EstadoAprobacion,
@@ -252,20 +333,20 @@ mod sistema_votacion {
                 return Err(Error::PermisosInsuficientes);
             }
 
-            if let Some(votacion) = self.elecciones.get(id_votacion - 1).as_mut() {
-                return match votacion.consultar_estado(self.env().block_timestamp()) {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1).as_mut() {
+                return match eleccion.consultar_estado(self.env().block_timestamp()) {
                     EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
                     EstadoDeEleccion::Finalizada => Err(Error::VotacionFinalizada),
                     EstadoDeEleccion::Pendiente => {
                         let res = match estado {
                             EstadoAprobacion::Aprobado => {
-                                votacion.aprobar_miembro(&id_miembro, &rol)
+                                eleccion.aprobar_miembro(&id_miembro, &rol)
                             }
                             EstadoAprobacion::Rechazado => {
-                                votacion.rechazar_miembro(&id_miembro, &rol)
+                                eleccion.rechazar_miembro(&id_miembro, &rol)
                             }
                         };
-                        self.elecciones.set(id_votacion - 1, votacion); // Necesario ya que no trabajamos con una referencia
+                        self.elecciones.set(id_eleccion - 1, eleccion); // Necesario ya que no trabajamos con una referencia
                         res
                     }
                 };
@@ -274,11 +355,15 @@ mod sistema_votacion {
             }
         }
 
-        /// Recibe el id de una votacion y retorna su estado actual.
+        /// Recibe el id de una elección y retorna su estado actual.
         /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
         #[ink(message)]
-        pub fn consultar_estado(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
-            if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+        pub fn consultar_estado(&self, id_eleccion: u32) -> Result<EstadoDeEleccion, Error> {
+            Self::consultar_estado_interno(self, id_eleccion)
+        }
+        
+        fn consultar_estado_interno(&self, id_eleccion: u32) -> Result<EstadoDeEleccion, Error> {
+            if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 Ok(eleccion.consultar_estado(self.env().block_timestamp()))
             } else {
                 Err(Error::VotacionNoExiste)
@@ -289,6 +374,10 @@ mod sistema_votacion {
         /// Devuelve `Error::PermisosInsuficientes` si no es llamado por el admin.
         #[ink(message)]
         pub fn get_block_timestamp(&self) -> Result<u64, Error> {
+            Self::get_block_timestamp_interno(&self)
+        }
+
+        pub fn get_block_timestamp_interno(&self) -> Result<u64, Error> {
             match self.es_admin() {
                 true => Ok(self.env().block_timestamp()),
                 false => Err(Error::PermisosInsuficientes),
@@ -296,17 +385,21 @@ mod sistema_votacion {
         }
 
         /// Le permite a un registrado en el sistema votar por un candidato
-        /// `id_candidato` en una elección `id_votacion`, solo si el usuario
+        /// `id_candidato` en una elección `id_eleccion`, solo si el usuario
         /// invocante está aprobado en la misma.
         #[ink(message)]
-        pub fn votar(&mut self, id_votacion: u32, id_candidato: AccountId) -> Result<(), Error> {
-            if let Some(mut eleccion) = self.elecciones.get(id_votacion - 1) {
+        pub fn votar(&mut self, id_eleccion: u32, id_candidato: AccountId) -> Result<(), Error> {
+            Self::votar_interno(self, id_eleccion, id_candidato)
+        }
+        
+        fn votar_interno(&mut self, id_eleccion: u32, id_candidato: AccountId) -> Result<(), Error> {
+            if let Some(mut eleccion) = self.elecciones.get(id_eleccion - 1) {
                 eleccion.votar(
                     self.env().caller(),
                     id_candidato,
                     self.env().block_timestamp(),
                 )?;
-                self.elecciones.set(id_votacion - 1, &eleccion);
+                self.elecciones.set(id_eleccion - 1, &eleccion);
                 Ok(())
             } else {
                 Err(Error::VotacionNoExiste)
@@ -338,7 +431,14 @@ mod sistema_votacion {
         /// Produce panic si un votante de la elección
         /// no se encuentra registrado en el sistema.
         #[ink(message)]
-        pub fn get_info_votantes_aprobados(
+        pub fn consultar_info_votantes_aprobados(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<(AccountId, Usuario)>, Error> {
+            Self::consultar_info_votantes_aprobados_interno(self, id_eleccion)
+        }
+        
+        fn consultar_info_votantes_aprobados_interno(
             &self,
             id_eleccion: u32,
         ) -> Result<Vec<(AccountId, Usuario)>, Error> {
@@ -363,17 +463,6 @@ mod sistema_votacion {
                 Err(Error::VotacionNoExiste)
             }
         }
-
-        /// Permite al administrador establecer el AccountId del contrato que podrá acceder
-        /// a una serie de métodos que obtienen información de una elección
-        #[ink(message)]
-        pub fn delegar_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
-            if !self.es_admin() {
-                return Err(Error::PermisosInsuficientes);
-            }
-            self.contrato_reportes = Some(account_id);
-            Ok(()) //exitoso
-        }
     }
 
     // Reportes
@@ -383,6 +472,10 @@ mod sistema_votacion {
         ///contrato de reportes
         #[ink(message)]
         pub fn get_votantes_aprobados(&self, id_eleccion: u32) -> Result<Vec<Votante>, Error> {
+            Self::get_votantes_aprobados_interno(self, id_eleccion)
+        }
+        
+        fn get_votantes_aprobados_interno(&self, id_eleccion: u32) -> Result<Vec<Votante>, Error> {
             if self.es_contrato_reportes() {
                 if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                     Ok(eleccion.votantes_aprobados)
@@ -401,6 +494,10 @@ mod sistema_votacion {
         // de AccountId `account_id`
         #[ink(message)]
         pub fn get_usuarios(&self, account_id: AccountId) -> Result<Usuario, Error> {
+            Self::get_usuarios_interno(self, account_id)
+        }
+        
+        fn get_usuarios_interno(&self, account_id: AccountId) -> Result<Usuario, Error> {
             if self.es_contrato_reportes() {
                 if let Some(id) = self.usuarios.get(account_id) {
                     Ok(id)
@@ -412,15 +509,26 @@ mod sistema_votacion {
             }
         }
 
-        /// Retorna los candidatos aprobados en la elección de id `id_votacion` asociados a su voto.
+        /// # Reportes
+        /// Retorna los candidatos aprobados en la elección de id `id_eleccion` asociados a su voto.
         /// Utiliza el `AccountId` asociado a los candidatos en la elección para buscar los
         /// usuarios registrados en el sistema.
         /// Verifica el estado de la elección y si el invocante es el contrato de reportes
         #[ink(message)]
-        pub fn get_candidatos(&self, id_votacion: u32) -> Result<Vec<Candidato>, Error> {
+        pub fn get_candidatos(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<Candidato>, Error> {
+            Self::get_candidatos_interno(self, id_eleccion)
+        }
+        
+        fn get_candidatos_interno(
+            &self,
+            id_eleccion: u32,
+        ) -> Result<Vec<Candidato>, Error> {
             if !self.es_contrato_reportes() {
                 Err(Error::PermisosInsuficientes)
-            } else if let Some(eleccion) = self.elecciones.get(id_votacion - 1) {
+            } else if let Some(eleccion) = self.elecciones.get(id_eleccion - 1) {
                 match eleccion.consultar_estado(self.env().block_timestamp()) {
                     EstadoDeEleccion::Pendiente => Err(Error::VotacionNoIniciada),
                     EstadoDeEleccion::EnCurso => Err(Error::VotacionEnCurso),
@@ -431,12 +539,31 @@ mod sistema_votacion {
             }
         }
 
+        /// Permite al administrador establecer el AccountId del contrato que podrá acceder
+        /// a una serie de métodos que obtienen información de una elección
+        #[ink(message)]
+        pub fn establecer_contrato_reportes(&mut self, account_id: AccountId) -> Result<(), Error> {
+            Self::establecer_contrato_reportes_interno(self, account_id)
+        }
+        
+        fn establecer_contrato_reportes_interno(&mut self, account_id: AccountId) -> Result<(), Error> {
+            if !self.es_admin() {
+                return Err(Error::PermisosInsuficientes);
+            }
+            self.contrato_reportes = Some(account_id);
+            Ok(()) //exitoso
+        }
+
         /// Recibe el id de una votacion y retorna su estado actual.
         /// Devuelve `Error::VotacionNoExiste` si la votacion no se halla.
         /// Devuelve `Error::PermisosInsuficientes` si el invocanto no es
         /// el contrato de reportes
         #[ink(message)]
         pub fn get_estado_eleccion(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
+            Self::get_estado_eleccion_interno(self, id_votacion)
+        }
+
+        pub fn get_estado_eleccion_interno(&self, id_votacion: u32) -> Result<EstadoDeEleccion, Error> {
             if self.es_contrato_reportes() {
                 self.consultar_estado(id_votacion)
             } else {
@@ -483,7 +610,7 @@ mod sistema_votacion {
         impl Default for ContractEnv {
             fn default() -> Self {
                 Self {
-                    contract: SistemaVotacion::new(),
+                    contract: SistemaVotacion::new_interno(),
                     contract_id: ink::env::account_id::<ink::env::DefaultEnvironment>(),
                     // Por defecto se superpone el `AccountId` del contrato
                     // con el de alice, por eso esto es necesario.
@@ -511,7 +638,7 @@ mod sistema_votacion {
                 // Registrar a Alice
                 ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Alice"),
                         String::from("A"),
                         String::from("11111111"),
@@ -521,7 +648,7 @@ mod sistema_votacion {
                 // Registrar a Bob
                 ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Bob"),
                         String::from("B"),
                         String::from("22222222"),
@@ -531,7 +658,7 @@ mod sistema_votacion {
                 // Registrar a Charlie
                 ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Charlie"),
                         String::from("C"),
                         String::from("33333333"),
@@ -541,7 +668,7 @@ mod sistema_votacion {
                 // Registrar a Django
                 ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Django"),
                         String::from("D"),
                         String::from("44444444"),
@@ -565,7 +692,7 @@ mod sistema_votacion {
             // Registrar a bob en el sistema
             assert!(env
                 .contract
-                .registrar_usuario(
+                .registrar_usuario_interno(
                     String::from("Bob"),
                     String::from(""),
                     String::from("22222222")
@@ -575,7 +702,7 @@ mod sistema_votacion {
             // El mismo AccountId intenta registrarse de nuevo, no debe poder
             assert_eq!(
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Alice"),
                         String::from(""),
                         String::from("11111111")
@@ -590,7 +717,7 @@ mod sistema_votacion {
             // El mismo dni intenta registrase de nuevo, no debe poder
             assert_eq!(
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Eve"),
                         String::from(""),
                         String::from("22222222")
@@ -622,7 +749,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
 
             // La cuenta que crea el contrato le cede los privilegios a Alice
-            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
+            assert!(env.contract.delegar_admin_interno(env.accounts.alice).is_ok());
 
             // Alice prueba si es admin
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
@@ -634,11 +761,11 @@ mod sistema_votacion {
 
             // Alice le cede los privilegios a Bob
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
-            assert!(env.contract.delegar_admin(env.accounts.bob).is_ok());
+            assert!(env.contract.delegar_admin_interno(env.accounts.bob).is_ok());
 
             // Bob prueba si es admin
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
-            assert!(env.contract.delegar_admin(env.accounts.frank).is_ok());
+            assert!(env.contract.delegar_admin_interno(env.accounts.frank).is_ok());
 
             // Alice ya no es admin
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
@@ -648,7 +775,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
             assert_eq!(
                 env.contract
-                    .delegar_admin(env.accounts.alice)
+                    .delegar_admin_interno(env.accounts.alice)
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes.to_string()
@@ -660,14 +787,14 @@ mod sistema_votacion {
             let mut env = ContractEnv::default();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
             // Alice es ahora admin del sistema
-            assert!(env.contract.delegar_admin(env.accounts.alice).is_ok());
+            assert!(env.contract.delegar_admin_interno(env.accounts.alice).is_ok());
 
             // Alice como invocante del contrato
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             // Registrar a Alice en el sistema no debe ser posible
             assert_eq!(
                 env.contract
-                    .registrar_usuario(
+                    .registrar_usuario_interno(
                         String::from("Alice"),
                         String::from(""),
                         String::from("11111111")
@@ -687,7 +814,7 @@ mod sistema_votacion {
             // Se crea una elección con exito, de id = 1
             assert_eq!(
                 env.contract
-                    .crear_eleccion(
+                    .crear_eleccion_interno(
                         String::from("Presidente"),
                         0,
                         0,
@@ -706,7 +833,7 @@ mod sistema_votacion {
             // Se crea una segunda elección con exito, de id = 2
             assert_eq!(
                 env.contract
-                    .crear_eleccion(
+                    .crear_eleccion_interno(
                         String::from("Presidente"),
                         0,
                         0,
@@ -726,7 +853,7 @@ mod sistema_votacion {
             // La creación falla porque la fecha de finalización es posterior a la de inicio.
             assert_eq!(
                 env.contract
-                    .crear_eleccion(
+                    .crear_eleccion_interno(
                         String::from("Presidente"),
                         1,
                         1,
@@ -749,7 +876,7 @@ mod sistema_votacion {
             // Bob no debe poder crear una elección, puesto que no es admin
             assert_eq!(
                 env.contract
-                    .crear_eleccion(
+                    .crear_eleccion_interno(
                         String::from("Presidente"),
                         0,
                         0,
@@ -778,7 +905,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -800,28 +927,28 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .is_ok());
 
             // Bob se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .is_ok());
 
             // Charlie se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .is_ok());
 
             // Django se confundió el id de la elección
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(u32::MAX, Rol::Votante)
+                    .registrar_en_eleccion_interno(u32::MAX, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionNoExiste.to_string()
@@ -831,7 +958,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                    .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::UsuarioNoExistente.to_string()
@@ -841,7 +968,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                     .unwrap_err()
                     .to_string(),
                 Error::MiembroExistente.to_string()
@@ -851,7 +978,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                    .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::MiembroExistente.to_string()
@@ -868,7 +995,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     // inicio: 31/1/1970 00:00hs
                     0,
@@ -893,7 +1020,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .is_ok());
 
             // Establecer el tiempo al último instante antes del inicio de la eleccion.
@@ -904,7 +1031,7 @@ mod sistema_votacion {
             // Ahora Charlie no puede registrarse
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionEnCurso.to_string()
@@ -918,7 +1045,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             assert_eq!(
                 env.contract
-                    .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                    .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionFinalizada.to_string()
@@ -934,7 +1061,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     0,
                     0,
@@ -955,13 +1082,13 @@ mod sistema_votacion {
             // Como la elección no tiene miembros, retorna un vector vacío
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Candidato)
                     .unwrap(),
                 vec![]
             );
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Votante)
                     .unwrap(),
                 vec![]
             );
@@ -969,20 +1096,20 @@ mod sistema_votacion {
             // Alice se registra como Candidato
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Bob se registra como Votante
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // El único candidato no verificado es Alice
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Candidato)
                     .unwrap()
                     .first()
                     .unwrap()
@@ -994,7 +1121,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Votante)
                     .unwrap()
                     .first()
                     .unwrap()
@@ -1007,7 +1134,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes.to_string()
@@ -1017,7 +1144,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(u32::MAX, Rol::Votante)
+                    .consultar_miembros_no_verificados_interno(u32::MAX, Rol::Votante)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionNoExiste.to_string()
@@ -1033,7 +1160,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     0,
                     0,
@@ -1054,7 +1181,7 @@ mod sistema_votacion {
             // Como la elección no tiene miembros, retorna un vector vacío
             assert_eq!(
                 env.contract
-                    .consultar_candidatos_disponibles(eleccion_id)
+                    .consultar_candidatos_disponibles_interno(eleccion_id)
                     .unwrap(),
                 vec![]
             );
@@ -1062,20 +1189,20 @@ mod sistema_votacion {
             // Alice se registra como Candidato
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Bob se registra como Votante
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             // Alice no se ha aprobado, por lo que continua vacia. El admin posee permisos para el método
             assert_eq!(
                 env.contract
-                    .consultar_candidatos_disponibles(eleccion_id)
+                    .consultar_candidatos_disponibles_interno(eleccion_id)
                     .unwrap(),
                 vec![]
             );
@@ -1083,7 +1210,7 @@ mod sistema_votacion {
             // Se aprueba a Alice
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Candidato,
@@ -1094,7 +1221,7 @@ mod sistema_votacion {
             // Se rechaza a Bob
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Votante,
@@ -1106,7 +1233,7 @@ mod sistema_votacion {
             // Se verifica que el AccountId de Alice se encuentre en los candidatos disponibles (verifica la propia Alice)
             assert_eq!(
                 env.contract
-                    .consultar_candidatos_disponibles(eleccion_id)
+                    .consultar_candidatos_disponibles_interno(eleccion_id)
                     .unwrap()
                     .first()
                     .unwrap()
@@ -1118,7 +1245,7 @@ mod sistema_votacion {
             // Bob intenta ver los candidatos disponibles. No es posible porque fue rechazado de la elección
             assert!(env
                 .contract
-                .consultar_candidatos_disponibles(eleccion_id)
+                .consultar_candidatos_disponibles_interno(eleccion_id)
                 .is_err());
         }
 
@@ -1132,7 +1259,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -1154,35 +1281,35 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .is_ok());
 
             // Bob se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .is_ok());
 
             // Charlie se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .is_ok());
 
             // Django se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert!(env
                 .contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .is_ok());
 
             // Alice y Bob están pendientes de verificación como Candidatos
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Candidato)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Candidato)
                     .unwrap()
                     .iter()
                     .map(|m| m.0)
@@ -1193,7 +1320,7 @@ mod sistema_votacion {
             // Charlie y Django están pendientes de verificación como Votantes
             assert_eq!(
                 env.contract
-                    .consultar_miembros_no_verificados(eleccion_id, Rol::Votante)
+                    .consultar_miembros_no_verificados_interno(eleccion_id, Rol::Votante)
                     .unwrap()
                     .iter()
                     .map(|m| m.0)
@@ -1204,7 +1331,7 @@ mod sistema_votacion {
             // Admin aprueba a Alice como Candidato
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Candidato,
@@ -1216,7 +1343,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Candidato,
@@ -1228,7 +1355,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.charlie,
                     Rol::Votante,
@@ -1240,7 +1367,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert!(env
                 .contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.django,
                     Rol::Votante,
@@ -1252,7 +1379,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         eleccion_id,
                         env.accounts.alice,
                         Rol::Votante,
@@ -1267,7 +1394,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         eleccion_id,
                         env.accounts.frank,
                         Rol::Candidato,
@@ -1282,7 +1409,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         u32::MAX,
                         env.accounts.django,
                         Rol::Votante,
@@ -1297,7 +1424,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.eve);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         eleccion_id,
                         env.accounts.alice,
                         Rol::Candidato,
@@ -1315,7 +1442,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         eleccion_id,
                         env.accounts.django,
                         Rol::Votante,
@@ -1333,7 +1460,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
                 env.contract
-                    .cambiar_estado_aprobacion(
+                    .cambiar_estado_aprobacion_interno(
                         eleccion_id,
                         env.accounts.django,
                         Rol::Votante,
@@ -1355,7 +1482,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -1372,13 +1499,13 @@ mod sistema_votacion {
 
             // establecer con fines de pruebas el id del contrato reportes igual al administrador
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Intento pedir los candidatos de una eleccion que no existe
             assert_eq!(
                 env.contract
-                    .get_candidatos(u32::MAX)
+                    .get_candidatos_interno(u32::MAX)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionNoExiste {}.to_string()
@@ -1386,52 +1513,52 @@ mod sistema_votacion {
 
             // Intento pedir los candidatos de una eleccion sin candidatos
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(99999999999);
-            assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
+            assert!(env.contract.get_candidatos_interno(eleccion_id).unwrap().is_empty());
 
             // Establecer el tiempo del bloque en uno válido para registrarse, 01/01/1970 00:00hs
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
             // Intento pedir los candidatos antes de que inicie la eleccion
             assert_eq!(
-                env.contract.get_candidatos(eleccion_id),
+                env.contract.get_candidatos_interno(eleccion_id),
                 Err(Error::VotacionNoIniciada)
             );
 
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Bob se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Charlie se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Intento pedir los candidatos mientras la eleccion esta en curso
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(2770200000);
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             assert_eq!(
-                env.contract.get_candidatos(eleccion_id),
+                env.contract.get_candidatos_interno(eleccion_id),
                 Err(Error::VotacionEnCurso)
             );
 
             // Intento pedir los candidatos de una eleccion sin candidatos aprobados
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(99999999999);
-            assert!(env.contract.get_candidatos(eleccion_id).unwrap().is_empty());
+            assert!(env.contract.get_candidatos_interno(eleccion_id).unwrap().is_empty());
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
             // Admin aprueba a Alice como Candidato
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Candidato,
@@ -1441,7 +1568,7 @@ mod sistema_votacion {
 
             // Admin rechaza a Bob como Candidato
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Candidato,
@@ -1451,7 +1578,7 @@ mod sistema_votacion {
 
             // Admin aprueba a Charlie como Candidato
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.charlie,
                     Rol::Candidato,
@@ -1461,7 +1588,7 @@ mod sistema_votacion {
 
             // Pido los candidatos aprobados
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(99999999999);
-            let candidatos = env.contract.get_candidatos(eleccion_id).unwrap();
+            let candidatos = env.contract.get_candidatos_interno(eleccion_id).unwrap();
             let alice = env.accounts.alice;
             let charlie = env.accounts.charlie;
             // Los candidatos deben ser Alice y Charlie ya que son los unicos aprobados
@@ -1472,13 +1599,13 @@ mod sistema_votacion {
             // Django se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Admin aprueba a Django como Votante
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.django,
                     Rol::Votante,
@@ -1492,7 +1619,7 @@ mod sistema_votacion {
             // Django vota a Alice
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             //assert!(
-            env.contract.votar(eleccion_id, env.accounts.alice).unwrap();
+            env.contract.votar_interno(eleccion_id, env.accounts.alice).unwrap();
 
             // Establecer el tiempo del bloque en uno en que la elección haya finalizado
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(9999999999);
@@ -1500,7 +1627,7 @@ mod sistema_votacion {
             // Ahora alice tiene un voto
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             let _ = response[0].votar();
-            assert_eq!(env.contract.get_candidatos(eleccion_id).unwrap(), response);
+            assert_eq!(env.contract.get_candidatos_interno(eleccion_id).unwrap(), response);
         }
 
         #[ink::test]
@@ -1510,7 +1637,7 @@ mod sistema_votacion {
 
             // Probar consultar el estado de una eleccion que no existe
             assert_eq!(
-                env.contract.consultar_estado(u32::MAX),
+                env.contract.consultar_estado_interno(u32::MAX),
                 Err(Error::VotacionNoExiste)
             );
 
@@ -1527,7 +1654,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -1544,12 +1671,12 @@ mod sistema_votacion {
 
             // establecer con fines de pruebas el id del contrato reportes igual al administrador
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Intento votar en una eleccion que no existe
             assert_eq!(
-                env.contract.votar(u32::MAX, env.accounts.bob),
+                env.contract.votar_interno(u32::MAX, env.accounts.bob),
                 Err(Error::VotacionNoExiste)
             );
 
@@ -1559,31 +1686,31 @@ mod sistema_votacion {
             // Alice se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Bob se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Charlie se registra en la elección como `Rol::Candidato`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Candidato)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Candidato)
                 .unwrap();
 
             // Django se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             // Admin aprueba a Alice como Candidato
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Candidato,
@@ -1593,7 +1720,7 @@ mod sistema_votacion {
 
             // Admin rechaza a Bob como Candidato
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Candidato,
@@ -1603,7 +1730,7 @@ mod sistema_votacion {
 
             // Admin aprueba a Django como Votante
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.django,
                     Rol::Votante,
@@ -1617,24 +1744,24 @@ mod sistema_votacion {
             // Intento votar en una eleccion con un votante invalido
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.frank);
             assert_eq!(
-                env.contract.votar(eleccion_id, env.accounts.alice),
+                env.contract.votar_interno(eleccion_id, env.accounts.alice),
                 Err(Error::VotanteNoExistente)
             );
 
             // Intento votar a un candidato invalido en una eleccion
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert_eq!(
-                env.contract.votar(eleccion_id, env.accounts.frank),
+                env.contract.votar_interno(eleccion_id, env.accounts.frank),
                 Err(Error::CandidatoNoExistente)
             );
 
             // Django vota a Alice
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
-            env.contract.votar(eleccion_id, env.accounts.alice).unwrap();
+            env.contract.votar_interno(eleccion_id, env.accounts.alice).unwrap();
 
             // Django intenta volver a votar a Alice
             assert_eq!(
-                env.contract.votar(eleccion_id, env.accounts.alice),
+                env.contract.votar_interno(eleccion_id, env.accounts.alice),
                 Err(Error::VotanteYaVoto)
             );
 
@@ -1645,7 +1772,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             let candidatos = env
                 .contract
-                .consultar_candidatos_disponibles(eleccion_id)
+                .consultar_candidatos_disponibles_interno(eleccion_id)
                 .unwrap();
             let alice_id = env.accounts.alice;
             let alice = env.contract.usuarios.get(alice_id).unwrap();
@@ -1665,7 +1792,7 @@ mod sistema_votacion {
             // Cambio el AccountId de contrato_reportes
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract.admin);
             env.contract
-                .delegar_contrato_reportes(env.accounts.bob)
+                .establecer_contrato_reportes_interno(env.accounts.bob)
                 .unwrap();
 
             // Llamo al metodo con Alice
@@ -1678,7 +1805,7 @@ mod sistema_votacion {
         }
 
         #[ink::test]
-        fn probar_get_info_votantes_aprobados() {
+        fn probar_consultar_info_votantes_aprobados() {
             // inicializar sistema con usuarios registrados
             let mut env = ContractEnv::new_inicializado();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -1687,7 +1814,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -1704,19 +1831,19 @@ mod sistema_votacion {
 
             // establecer con fines de pruebas el id del contrato reportes igual al administrador
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Intento llamar al metodo con una eleccion que no existe
             assert_eq!(
-                env.contract.get_info_votantes_aprobados(u32::MAX),
+                env.contract.consultar_info_votantes_aprobados_interno(u32::MAX),
                 Err(Error::VotacionNoExiste)
             );
 
             // Llamo al metodo con una eleccion sin votantes
             assert!(env
                 .contract
-                .get_info_votantes_aprobados(eleccion_id)
+                .consultar_info_votantes_aprobados_interno(eleccion_id)
                 .unwrap()
                 .is_empty());
 
@@ -1726,37 +1853,37 @@ mod sistema_votacion {
             // Alice se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Bob se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Charlie se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Django se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Django intenta llamar al metodo
             assert_eq!(
-                env.contract.get_info_votantes_aprobados(u32::MAX),
+                env.contract.consultar_info_votantes_aprobados_interno(u32::MAX),
                 Err(Error::PermisosInsuficientes)
             );
 
             // Admin aprueba a Alice como Votante
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Votante,
@@ -1766,7 +1893,7 @@ mod sistema_votacion {
 
             // Admin rechaza a Bob como Votante
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Votante,
@@ -1776,7 +1903,7 @@ mod sistema_votacion {
 
             // Admin aprueba a Charlie como Votante
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.charlie,
                     Rol::Votante,
@@ -1787,7 +1914,7 @@ mod sistema_votacion {
             // Llamo al metodo correctamente
             let info_votantes = env
                 .contract
-                .get_info_votantes_aprobados(eleccion_id)
+                .consultar_info_votantes_aprobados_interno(eleccion_id)
                 .unwrap();
             let alice = env.accounts.alice;
             let charlie = env.accounts.charlie;
@@ -1809,7 +1936,7 @@ mod sistema_votacion {
             // Crear una elección
             let eleccion_id = env
                 .contract
-                .crear_eleccion(
+                .crear_eleccion_interno(
                     String::from("Presidente"),
                     1,
                     0,
@@ -1826,19 +1953,19 @@ mod sistema_votacion {
 
             // Establecer con fines de pruebas el id del contrato reportes igual al administrador
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Intento llamar al metodo con una eleccion que no existe
             assert_eq!(
-                env.contract.get_votantes_aprobados(u32::MAX),
+                env.contract.get_votantes_aprobados_interno(u32::MAX),
                 Err(Error::VotacionNoExiste)
             );
 
             // Llamo al metodo con una eleccion sin votantes
             assert!(env
                 .contract
-                .get_votantes_aprobados(eleccion_id)
+                .get_votantes_aprobados_interno(eleccion_id)
                 .unwrap()
                 .is_empty());
 
@@ -1848,37 +1975,37 @@ mod sistema_votacion {
             // Alice se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Bob se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.bob);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Charlie se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.charlie);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Django se registra en la elección como `Rol::Votante`
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             env.contract
-                .registrar_en_eleccion(eleccion_id, Rol::Votante)
+                .registrar_en_eleccion_interno(eleccion_id, Rol::Votante)
                 .unwrap();
 
             // Django intenta llamar al metodo
             assert_eq!(
-                env.contract.get_votantes_aprobados(u32::MAX),
+                env.contract.get_votantes_aprobados_interno(u32::MAX),
                 Err(Error::PermisosInsuficientes)
             );
 
             // Admin aprueba a Alice como Votante
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.alice,
                     Rol::Votante,
@@ -1888,7 +2015,7 @@ mod sistema_votacion {
 
             // Admin rechaza a Bob como Votante
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.bob,
                     Rol::Votante,
@@ -1898,7 +2025,7 @@ mod sistema_votacion {
 
             // Admin aprueba a Charlie como Votante
             env.contract
-                .cambiar_estado_aprobacion(
+                .cambiar_estado_aprobacion_interno(
                     eleccion_id,
                     env.accounts.charlie,
                     Rol::Votante,
@@ -1907,7 +2034,7 @@ mod sistema_votacion {
                 .unwrap();
 
             // Llamo al metodo correctamente
-            let info_votantes = env.contract.get_votantes_aprobados(eleccion_id).unwrap();
+            let info_votantes = env.contract.get_votantes_aprobados_interno(eleccion_id).unwrap();
             // Los votantes deben ser Alice y Charlie ya que son los unicos aprobados
             let response = env
                 .contract
@@ -1927,19 +2054,19 @@ mod sistema_votacion {
 
             // Establecer con fines de pruebas el id del contrato reportes igual al administrador
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Intento llamar al metodo con un usuario que no existe
             assert_eq!(
-                env.contract.get_usuarios(AccountId::from([9; 32])),
+                env.contract.get_usuarios_interno(AccountId::from([9; 32])),
                 Err(Error::UsuarioNoExistente)
             );
 
             // Django intenta llamar al metodo
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert_eq!(
-                env.contract.get_usuarios(env.accounts.alice),
+                env.contract.get_usuarios_interno(env.accounts.alice),
                 Err(Error::PermisosInsuficientes)
             );
 
@@ -1947,14 +2074,14 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             let alice_id = env.accounts.alice;
             let alice = env.contract.usuarios.get(alice_id).unwrap();
-            assert_eq!(env.contract.get_usuarios(alice_id).unwrap(), alice);
+            assert_eq!(env.contract.get_usuarios_interno(alice_id).unwrap(), alice);
             let charlie_id = env.accounts.charlie;
             let charlie = env.contract.usuarios.get(charlie_id).unwrap();
-            assert_eq!(env.contract.get_usuarios(charlie_id).unwrap(), charlie);
+            assert_eq!(env.contract.get_usuarios_interno(charlie_id).unwrap(), charlie);
         }
 
         #[ink::test]
-        fn probar_delegar_contrato_reportes() {
+        fn probar_establecer_contrato_reportes() {
             // Inicializar sistema con usuarios registrados
             let mut env = ContractEnv::new_inicializado();
             ink::env::test::set_callee::<ink::env::DefaultEnvironment>(env.contract_id);
@@ -1962,14 +2089,14 @@ mod sistema_votacion {
             // Django intenta llamar al metodo
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.django);
             assert_eq!(
-                env.contract.delegar_contrato_reportes(env.accounts.alice),
+                env.contract.establecer_contrato_reportes_interno(env.accounts.alice),
                 Err(Error::PermisosInsuficientes)
             );
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             // Llamo al metodo correctamente
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
         }
 
@@ -2002,7 +2129,7 @@ mod sistema_votacion {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.accounts.alice);
             assert_eq!(
                 env.contract
-                    .get_estado_eleccion(eleccion_id)
+                    .get_estado_eleccion_interno(eleccion_id)
                     .unwrap_err()
                     .to_string(),
                 Error::PermisosInsuficientes {}.to_string()
@@ -2011,13 +2138,13 @@ mod sistema_votacion {
             // Establecer con fines de pruebas el id del contrato reportes igual al administrador
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(env.contract_id);
             env.contract
-                .delegar_contrato_reportes(env.contract_id)
+                .establecer_contrato_reportes_interno(env.contract_id)
                 .unwrap();
 
             // Verificar que no puede invocarse con un id de elección inválido
             assert_eq!(
                 env.contract
-                    .get_estado_eleccion(u32::MAX)
+                    .get_estado_eleccion_interno(u32::MAX)
                     .unwrap_err()
                     .to_string(),
                 Error::VotacionNoExiste {}.to_string()
@@ -2027,7 +2154,7 @@ mod sistema_votacion {
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(0);
 
             assert_eq!(
-                env.contract.get_estado_eleccion(eleccion_id),
+                env.contract.get_estado_eleccion_interno(eleccion_id),
                 Ok(EstadoDeEleccion::Pendiente)
             );
 
@@ -2035,7 +2162,7 @@ mod sistema_votacion {
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(5400000);
 
             assert_eq!(
-                env.contract.get_estado_eleccion(eleccion_id),
+                env.contract.get_estado_eleccion_interno(eleccion_id),
                 Ok(EstadoDeEleccion::EnCurso)
             );
 
@@ -2043,7 +2170,7 @@ mod sistema_votacion {
             ink::env::test::set_block_timestamp::<DefaultEnvironment>(1700000000);
 
             assert_eq!(
-                env.contract.get_estado_eleccion(eleccion_id),
+                env.contract.get_estado_eleccion_interno(eleccion_id),
                 Ok(EstadoDeEleccion::Finalizada)
             );
         }
